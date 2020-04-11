@@ -1,42 +1,49 @@
 package com.evo.bootcamp.quiz.dao
 
-import java.util.UUID
-
 object DaoCommon {
-  protected final val authorId1 = UUID.randomUUID()
-  protected final val authorId2 = UUID.randomUUID()
-  protected final val bookId1 = UUID.randomUUID()
-  protected final val bookId2 = UUID.randomUUID()
-  protected final val bookId3 = UUID.randomUUID()
+  protected final val answerId1 = 0
+  protected final val answerId2 = 1
+  protected final val answerId3 = 2
+  protected final val answerId4 = 3
+  protected final val questionId1 = 0
 
-  final val authorsSql =
-    """CREATE TABLE authors (
-      |  id UUID PRIMARY KEY,
-      |  name VARCHAR(100) NOT NULL,
-      |  birthday DATE);""".stripMargin
-  final val booksSql =
-    """CREATE TABLE books (
-      |  id UUID PRIMARY KEY,
-      |  author UUID NOT NULL,
-      |  title VARCHAR(100) NOT NULL,
-      |  year INT,
-      |  genre VARCHAR(100) NOT NULL,
-      |  FOREIGN KEY (author) REFERENCES authors(id));""".stripMargin
+  final val answersSql =
+    """CREATE TABLE answers (
+      | id INT PRIMARY KEY,
+      | text VARCHAR(250) NOT NULL,
+      | questionId INT NULL
+      | );
+      |""".stripMargin
+
+  final val questionsSql =
+    """CREATE TABLE questions (
+      | id INT PRIMARY KEY,
+      | text VARCHAR(250) NOT NULL,
+      | category VARCHAR(100) NOT NULL,
+      | likesCount INT DEFAULT 0 NOT NULL,
+      | disLikesCount INT DEFAULT 0 NOT NULL,
+      | rightAnswer INT NOT NULL,
+      | FOREIGN KEY (rightAnswer) REFERENCES answers(id));
+      |""".stripMargin
+
   final val populateDataSql =
     s"""
-       |INSERT INTO authors (id, name, birthday) VALUES
-       |  ('$authorId1', 'Martin Odersky', '1958-09-05'),
-       |  ('$authorId2', 'J.K. Rowling', '1965-07-31');
+       |INSERT INTO answers (id, text) VALUES
+       |  ('$answerId1', 'Pips'),
+       |  ('$answerId2', 'Pups'),
+       |  ('$answerId3', 'Pipu-pipu'),
+       |  ('$answerId4', 'Kotik');
        |
-       |INSERT INTO books (id, author, title, year, genre) VALUES
-       |  ('$bookId1', '$authorId1', 'Programming in Scala', 2016, 'Computer science'),
-       |  ('$bookId2', '$authorId2', 'Harry Potter and Philosopher''s Stone', 1997, 'Fantasy'),
-       |  ('$bookId3', '$authorId2', 'Harry Potter and the Chamber of Secrets', 1998, 'Fantasy');
+       |INSERT INTO questions (id, text, category, rightAnswer) VALUES
+       |  ('$questionId1', 'Who is Danik?', 'Love', '$answerId1');
+       |
+       |ALTER TABLE answers ADD CONSTRAINT FK_QUESTIONS FOREIGN KEY (questionId)
+       |REFERENCES questions(id);
+       |
+       |UPDATE answers SET questionId='$questionId1' WHERE id='$answerId1';
+       |UPDATE answers SET questionId='$questionId1' WHERE id='$answerId2';
+       |UPDATE answers SET questionId='$questionId1' WHERE id='$answerId3';
+       |UPDATE answers SET questionId='$questionId1' WHERE id='$answerId4';
        |""".stripMargin
-
-  val fetchBooksCommonSql: String =
-    """SELECT b.id, a.id, a.name, a.birthday, b.title, b.year, b.genre FROM books b
-      |INNER JOIN authors a ON b.author = a.id """.stripMargin
-  val fetchHPBooksSql: String = fetchBooksCommonSql + s"WHERE b.author = '$authorId2';"
 
 }

@@ -1,11 +1,10 @@
 package com.evo.bootcamp.quiz
 
-import com.evo.bootcamp.quiz.dao.BooksDao.BooksDaoImpl
-import com.evo.bootcamp.quiz.routes.BooksRoutes
+import com.evo.bootcamp.quiz.routes.QuestionRoutes
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits._
 import com.evo.bootcamp.quiz.config.{Config, ServerConfig}
-import com.evo.bootcamp.quiz.dao.DaoInit
+import com.evo.bootcamp.quiz.dao.{DaoInit, QuestionsDaoImpl}
 import doobie.util.transactor.Transactor
 import fs2.Stream
 import org.http4s._
@@ -14,7 +13,7 @@ import org.http4s.server.blaze.BlazeServerBuilder
 
 object Http4sWithDbServer extends IOApp {
 
-  def makeRoutes(xa: Transactor[IO]): HttpRoutes[IO] = BooksRoutes.routes(new BooksDaoImpl(xa)) /*<+> jsonRoutes*/
+  def makeRoutes(xa: Transactor[IO]): HttpRoutes[IO] = QuestionRoutes.routes(new QuestionsDaoImpl(xa)) /*<+> jsonRoutes*/
 
   def serveStream(transactor: Transactor[IO], serverConfig: ServerConfig): Stream[IO, ExitCode] = {
     BlazeServerBuilder[IO]
@@ -24,6 +23,9 @@ object Http4sWithDbServer extends IOApp {
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
+    val serverConfig = for {
+      config <- Config.load()
+    } yield config.serverConfig
 
     val transactor = for {
       config <- Config.load()
@@ -33,7 +35,8 @@ object Http4sWithDbServer extends IOApp {
 
     val stream = for {
       tr <- Stream.eval(transactor)
-      serv <- serveStream(tr, ServerConfig("localhost", 9000))
+      sConfig <- Stream.eval(serverConfig)
+      serv <- serveStream(tr, sConfig)
     } yield serv
 
     stream.compile.drain.as(ExitCode.Success)

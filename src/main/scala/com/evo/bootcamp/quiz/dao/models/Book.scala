@@ -1,4 +1,4 @@
-package com.evo.bootcamp.quiz.dao.dto
+package com.evo.bootcamp.quiz.dao.models
 
 import java.time.Year
 import java.util.UUID

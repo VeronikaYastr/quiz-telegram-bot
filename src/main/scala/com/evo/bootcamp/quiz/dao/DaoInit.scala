@@ -18,9 +18,9 @@ object DaoInit {
   }
 
   def initTables(xa: Transactor[IO]): IO[Int] = {
-    val authorsFr = Fragment.const(DaoCommon.authorsSql)
-    val booksFr = Fragment.const(DaoCommon.booksSql)
+    val answersFr = Fragment.const(DaoCommon.answersSql)
+    val questionsFr = Fragment.const(DaoCommon.questionsSql)
     val initDataFr = Fragment.const(DaoCommon.populateDataSql)
-    (authorsFr ++ booksFr ++ initDataFr).update.run.transact(xa)
+    (answersFr ++ questionsFr ++ initDataFr).update.run.transact(xa)
   }
 }
