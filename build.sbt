@@ -17,6 +17,11 @@ val akkaVersion = "2.6.4"
 val doobieVersion = "0.8.8"
 
 libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-http" % "10.1.11",
+  "de.heikoseeberger" %% "akka-http-circe" % "1.31.0",
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "org.typelevel" %% "cats-core" % "2.1.0",
   "org.http4s" %% "http4s-dsl" % http4sVersion,
   "org.http4s" %% "http4s-blaze-server" % http4sVersion,
