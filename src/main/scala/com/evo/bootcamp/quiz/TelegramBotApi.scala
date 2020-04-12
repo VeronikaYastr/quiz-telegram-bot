@@ -24,20 +24,19 @@ class TelegramBotApi[F[_]](token: String, client: Client[F])(implicit F: Effect[
 
   def putStrLn(s: BotResponse[List[BotUpdate]]): F[Unit] = F.delay(println(s))
 
-  def requestUpdates(offset: Long): F[(Long, BotResponse[List[BotUpdate]])] = {
+  def requestUpdates(offset: Long): F[Long] = {
     val uri = botApiUri / "getUpdates" =? Map(
       "offset" -> List((offset + 1).toString),
       "timeout" -> List("0.5"), // timeout to throttle the polling
       "allowed_updates" -> List("""["message"]""")
     )
     client.expect[BotResponse[List[BotUpdate]]](uri)
-      .map(response => (lastOffset(response).getOrElse(offset), response))
+      .map(response => handleCommand(response).getOrElse(offset))
   }
 
-  private def lastOffset(response: BotResponse[List[BotUpdate]]): Option[Long] =
+  private def handleCommand(response: BotResponse[List[BotUpdate]]): Option[Long] =
     response.result match {
       case Nil => {
-        println("sad")
         None
       }
       case nonEmpty => {
