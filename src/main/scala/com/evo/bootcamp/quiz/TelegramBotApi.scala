@@ -22,17 +22,17 @@ class TelegramBotApi[F[_]](token: String, client: Client[F])(implicit F: Effect[
   private val botApiUri: Uri = uri"https://api.telegram.org" / s"bot$token"
   implicit val decoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
 
-  def putStrLn(s: String): F[Unit] = F.delay(println(s))
+  def putStrLn(s: BotResponse[List[BotUpdate]]): F[Unit] = F.delay(println(s))
 
-  def requestUpdates(offset: Long): F[Unit] = {
+  def requestUpdates(offset: Long): F[(Long, BotResponse[List[BotUpdate]])] = {
     val uri = botApiUri / "getUpdates" =? Map(
       "offset" -> List((offset + 1).toString),
       "timeout" -> List("0.5"), // timeout to throttle the polling
       "allowed_updates" -> List("""["message"]""")
     )
-    client.expect[String](uri) >>= putStrLn
+    client.expect[BotResponse[List[BotUpdate]]](uri)
+      .map(response => (lastOffset(response).getOrElse(offset), response))
   }
-
 
   private def lastOffset(response: BotResponse[List[BotUpdate]]): Option[Long] =
     response.result match {
