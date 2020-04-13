@@ -6,6 +6,8 @@ object DaoCommon {
   protected final val answerId3 = 2
   protected final val answerId4 = 3
   protected final val questionId1 = 0
+  protected final val questionId2 = 1
+  protected final val questionId3 = 2
 
   final val answersSql =
     """CREATE TABLE answers (
@@ -36,6 +38,12 @@ object DaoCommon {
        |
        |INSERT INTO questions (id, text, category, rightAnswer) VALUES
        |  ('$questionId1', 'Who is Danik?', 'Love', '$answerId1');
+       |
+       |INSERT INTO questions (id, text, category, rightAnswer) VALUES
+       |  ('$questionId2', 'Question2?', 'Hey', '$answerId2');
+       |
+       |INSERT INTO questions (id, text, category, rightAnswer) VALUES
+       |  ('$questionId3', 'Question3?', 'Hey', '$answerId3');
        |
        |ALTER TABLE answers ADD CONSTRAINT FK_QUESTIONS FOREIGN KEY (questionId)
        |REFERENCES questions(id);

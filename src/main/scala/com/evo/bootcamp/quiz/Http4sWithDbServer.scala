@@ -1,3 +1,4 @@
+/*
 package com.evo.bootcamp.quiz
 
 import com.evo.bootcamp.quiz.routes.QuestionRoutes
@@ -42,3 +43,4 @@ object Http4sWithDbServer extends IOApp {
     stream.compile.drain.as(ExitCode.Success)
   }
 }
+*/

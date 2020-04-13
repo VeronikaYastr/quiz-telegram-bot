@@ -5,11 +5,14 @@ import org.http4s.client.dsl.io._
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.implicits._
 import cats.syntax.apply._
-
 import cats.implicits._
+
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.global
 import cats.effect._
+import com.evo.bootcamp.quiz.config.DbConfig
+import com.evo.bootcamp.quiz.dao.{DaoInit, QuestionsDao}
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -21,8 +24,20 @@ object QuizApp extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     BlazeClientBuilder[IO](global).resource.use { client =>
       for {
+        init <- IO {
+          new DaoInit[IO]()
+        }
+        tr <- IO {
+          init.transactor(DbConfig("jdbc:postgresql://localhost:5432/postgres", "postgres", "password", "org.postgresql.Driver"))
+        }
+        dao <- IO {
+          new QuestionsDao[IO](tr)
+        }
+        logic <- IO {
+          new TelegramBotLogic[IO](dao)
+        }
         api <- IO {
-          new TelegramBotApi[IO](token, client)
+          new TelegramBotApi[IO](token, client, logic)
         }
         _ <- (new TelegramBotProcess[IO](api)).run
 
