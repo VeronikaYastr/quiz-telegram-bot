@@ -31,13 +31,13 @@ object DaoCommon {
   final val populateDataSql =
     s"""
        |INSERT INTO answers (id, text) VALUES
-       |  ('$answerId1', 'Pips'),
-       |  ('$answerId2', 'Pups'),
-       |  ('$answerId3', 'Pipu-pipu'),
-       |  ('$answerId4', 'Kotik');
+       |  ('$answerId1', '1'),
+       |  ('$answerId2', '2'),
+       |  ('$answerId3', '3'),
+       |  ('$answerId4', '4');
        |
        |INSERT INTO questions (id, text, category, rightAnswer) VALUES
-       |  ('$questionId1', 'Who is Danik?', 'Love', '$answerId1');
+       |  ('$questionId1', 'Who is who?', 'Heey', '$answerId1');
        |
        |INSERT INTO questions (id, text, category, rightAnswer) VALUES
        |  ('$questionId2', 'Question2?', 'Hey', '$answerId2');
