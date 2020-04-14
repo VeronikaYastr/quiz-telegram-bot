@@ -6,7 +6,7 @@ import java.util.UUID
 import cats.data.NonEmptyList
 import cats.effect.IO._
 import cats.effect._
-import com.evo.bootcamp.quiz.dao.models.{Book, Question}
+import com.evo.bootcamp.quiz.dao.models.Question
 import doobie._
 import doobie.util.transactor.Transactor
 import doobie.implicits._

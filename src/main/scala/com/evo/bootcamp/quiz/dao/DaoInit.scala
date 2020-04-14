@@ -16,11 +16,4 @@ class DaoInit[F[_]](implicit F: Effect[F]) {
         driver = dbConfig.driverName
       )
   }
-
-  def initTables(xa: Transactor[F]): F[Int] = {
-    val answersFr = Fragment.const(DaoCommon.answersSql)
-    val questionsFr = Fragment.const(DaoCommon.questionsSql)
-    val initDataFr = Fragment.const(DaoCommon.populateDataSql)
-    (answersFr ++ questionsFr ++ initDataFr).update.run.transact(xa)
-  }
 }
