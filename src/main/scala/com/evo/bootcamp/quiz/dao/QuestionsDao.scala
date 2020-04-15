@@ -22,9 +22,16 @@ class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
     queryQuestions.queryWithLogHandler[Question](LogHandler.jdkLogHandler).to[List].transact(xa)
   }
 
-  def generateRandomQuestions(amount: Int): F[List[Question]] = {
-    val queryQuestions = sql"select * from questions order by random() limit $amount "
-    queryQuestions.queryWithLogHandler[Question](LogHandler.jdkLogHandler).to[List].transact(xa)
+  def initGame(userId: Long, questionId: Int, amount: Int): F[UUID] = {
+    val quizId = UUID.randomUUID()
+    val initGame = sql"insert into game (userid, questionid, amount, quizid) values ($userId, $questionId, $amount, $quizId);"
+    initGame.update.run.transact(xa)
+    F.pure(quizId)
+  }
+
+  def generateRandomQuestion(): F[Question] = {
+    val queryQuestions = sql"select * from questions order by random() limit 1 "
+    queryQuestions.query[Question].unique.transact(xa)
   }
 
   def getQuestionsAmount: F[Int] = {

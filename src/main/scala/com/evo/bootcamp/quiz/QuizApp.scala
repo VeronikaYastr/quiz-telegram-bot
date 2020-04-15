@@ -23,24 +23,13 @@ object QuizApp extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     BlazeClientBuilder[IO](global).resource.use { client =>
+      val init = new DaoInit[IO]()
+      val tr = init.transactor(DbConfig("jdbc:postgresql://localhost:5432/postgres", "postgres", "password", "org.postgresql.Driver"))
+      val dao = new QuestionsDao[IO](tr)
+      val logic = new TelegramBotLogic[IO](dao)
+      val api = new TelegramBotApi[IO](token, client, logic)
       for {
-        init <- IO {
-          new DaoInit[IO]()
-        }
-        tr <- IO {
-          init.transactor(DbConfig("jdbc:postgresql://localhost:5432/postgres", "postgres", "password", "org.postgresql.Driver"))
-        }
-        dao <- IO {
-          new QuestionsDao[IO](tr)
-        }
-        logic <- IO {
-          new TelegramBotLogic[IO](dao)
-        }
-        api <- IO {
-          new TelegramBotApi[IO](token, client, logic)
-        }
         _ <- (new TelegramBotProcess[IO](api)).run
-
       } yield ExitCode.Success
     }
 //    BlazeClientBuilder[IO](global).resource.use { client =>

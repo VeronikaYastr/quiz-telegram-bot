@@ -32,7 +32,7 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       "allowed_updates" -> List("""["message"]""")
     )
     client.expect[BotResponse[List[BotUpdate]]](uri)
-      .map(response => processMessage(response).getOrElse(offset))
+      .flatMap(response => processMessage(response).map(_.getOrElse(0)))
   }
 
   def sendMessage(chatId: Long, message: String): F[Unit] = {
@@ -45,17 +45,13 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     client.expect[Unit](uri)
   }
 
-  private def processMessage(response: BotResponse[List[BotUpdate]]): Option[Long] =
+  private def processMessage(response: BotResponse[List[BotUpdate]]): F[Option[Long]] =
     response.result match {
-      case Nil => {
-        None
-      }
-      case nonEmpty => {
-        println("hi")
-        println(nonEmpty)
-        nonEmpty.flatMap(TelegramBotCommand.fromRawMessage).map(handleCommand).foreach(x => F.toIO(x).unsafeRunSync())
-        Some(nonEmpty.maxBy(_.update_id).update_id)
-      }
+      case Nil =>
+        F.pure(None)
+      case nonEmpty =>
+        val commands: List[F[Unit]] = nonEmpty.flatMap(TelegramBotCommand.fromRawMessage).map(handleCommand)
+        commands.sequence.map(_ => Some(nonEmpty.maxBy(_.update_id).update_id))
     }
 
   def handleCommand(command: TelegramBotCommand): F[Unit] = {
@@ -68,7 +64,7 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       ).mkString("\n"))
       case c: StartGame => {
         val chatId = c.chatId
-        logic.generateQuestions(10, chatId).void *> sendMessage(chatId, "Your game begins.")
+        logic.setQuestionsAmount(10, chatId).void *> sendMessage(chatId, "Your game begins.")
       }
       case c: Begin => {
         val chatId = c.chatId
