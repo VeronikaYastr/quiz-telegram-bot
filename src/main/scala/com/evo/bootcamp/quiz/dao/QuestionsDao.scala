@@ -18,7 +18,7 @@ class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
   }
 
   def initGame(userId: Long, amount: Int): F[Int] = {
-    val initGame = sql"insert into game (userid, amount) values ($userId, $amount);"
+    val initGame = sql"insert into game (userId, amount) values ($userId, $amount);"
     initGame.update.run.transact(xa)
   }
 
@@ -27,13 +27,18 @@ class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
     queryQuestions.query[Question].unique.transact(xa)
   }
 
-  def checkUniqueQuestion(userId: Long, gameId: Long, questionId: Int): F[Option[Int  ]] = {
-    val queryQuestions = sql"select questionId from gameProcess where userId=$userId and gameId=$gameId and questionId=$questionId"
-    queryQuestions.query[Option[Int]].unique.transact(xa)
+  def saveQuestionForUser(questionId: Int, userId: Long, gameId: Int): F[Int] = {
+    val saveQuestion = sql"insert into game_process (gameId, userId, questionId) values ($gameId, $userId, $questionId);"
+    saveQuestion.update.run.transact(xa)
+  }
+
+  def checkUniqueQuestion(userId: Long, gameId: Long, questionId: Int): F[Option[Int]] = {
+    val queryQuestions = sql"select questionId from game_process where userId=$userId and gameId=$gameId and questionId=$questionId"
+    queryQuestions.query[Int].option.transact(xa)
   }
 
   def getGameId(userId: Long): F[Int] = {
-    val getGameId = sql"select id from game where userId=$userId"
+    val getGameId = sql"select id from game where userId=$userId and create_date=(select max(create_date) from game where userId=$userId)"
     getGameId.query[Int].unique.transact(xa)
   }
 

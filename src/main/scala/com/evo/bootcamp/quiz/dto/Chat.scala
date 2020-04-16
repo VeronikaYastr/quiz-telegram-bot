@@ -1,4 +1,4 @@
 package com.evo.bootcamp.quiz.dto
 
-case class Chat(id: Long)
+final case class Chat(id: Long)
 

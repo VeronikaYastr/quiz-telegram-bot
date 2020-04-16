@@ -1,9 +1,9 @@
 package com.evo.bootcamp.quiz
 
 import cats.effect.Effect
+import cats.implicits._
 import com.evo.bootcamp.quiz.dao.QuestionsDao
 import com.evo.bootcamp.quiz.dao.models.Question
-import cats.implicits._
 
 class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F]) {
 
@@ -18,7 +18,7 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
       gameId <- questionsDao.getGameId(chatId)
       qId <- questionsDao.checkUniqueQuestion(chatId, gameId, question.id)
       _ = qId match {
-        case None => question
+        case None => questionsDao.saveQuestionForUser(question.id, chatId, gameId)
         case Some(_) => generateAndCheck
       }
     } yield question

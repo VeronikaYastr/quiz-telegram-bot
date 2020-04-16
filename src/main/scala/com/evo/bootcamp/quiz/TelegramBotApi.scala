@@ -17,7 +17,7 @@ import io.circe.{Encoder, Json}
 import io.circe.syntax._
 import fs2._
 import org.http4s.QueryParamEncoder.stringQueryParamEncoder
-import org.http4s.{EntityDecoder, QueryParamEncoder, QueryParameterValue, Uri}
+import org.http4s.{EntityDecoder, QueryOps, QueryParamEncoder, QueryParameterValue, Uri}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -26,6 +26,12 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
 {
   private val botApiUri: Uri = uri"https://api.telegram.org" / s"bot$token"
   implicit val decoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
+  implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
+
+  implicit val markupEncoder: QueryParamEncoder[List[InlineKeyboardButton]] =
+    (list: List[InlineKeyboardButton]) => {
+      QueryParameterValue(s"""{"inline_keyboard": [${list.asJson.noSpaces}]}""")
+    }
 
   def putStrLn(s: BotResponse[List[BotUpdate]]): F[Unit] = F.delay(println(s))
 
@@ -40,11 +46,11 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
   }
 
   def sendMessage(chatId: Long, message: String, buttons: List[InlineKeyboardButton] = List.empty): F[Unit] = {
-    val uri = botApiUri / "sendMessage" =? Map(
+    val uri = (botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
       "parse_mode" -> List("Markdown"),
       "text" -> List(message)
-    ) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
+    )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
 
     client.expect[Unit](uri)
   }
@@ -61,29 +67,18 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
   def handleCommand(command: TelegramBotCommand): F[Unit] = {
     command match {
       case c: ShowHelp => sendMessage(c.chatId, List(
-        "This bot stores your progress on the subjects. Commands:",
+        "This bot can be used to play quiz game. Commands:",
         s"`$help` - show this help message",
         s"`$start`- starts the game",
         s"`$stop` - stops the game",
       ).mkString("\n"))
-      case c: StartGame => {
+      case c: StartGame =>
         val chatId = c.chatId
-        logic.initGame(10, chatId).void *> sendMessage(chatId, "Your game begins \\xF0\\x9F\\x98\\x89.")
-      }
-      case c: Begin => {
+        // TODO: remove hardcoded amount and send buttons to choose amount
+        logic.initGame(10, chatId).void *> sendMessage(chatId, "*Your game is started*")
+      case c: Begin =>
         val chatId = c.chatId
-        logic.getNextQuestion(chatId).map(x => sendMessage(chatId, x.text))
-      }
+        logic.getNextQuestion(chatId).flatMap(x => sendMessage(chatId, x.text))
     }
   }
-}
-
-object TelegramBotApi {
-
-  implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
-
-  implicit val markupEncoder: QueryParamEncoder[List[InlineKeyboardButton]] =
-    (list: List[InlineKeyboardButton]) => {
-      QueryParameterValue(s"""{"inline_keyboard": [${list.asJson.noSpaces}]}""")
-    }
 }
