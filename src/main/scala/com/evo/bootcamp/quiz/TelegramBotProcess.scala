@@ -14,6 +14,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
       api.requestUpdates(offset)
         .flatMap(response => processMessage(response).map(_.getOrElse(0)))
         .flatMap(loop)
+    }
   }
 
   private def processMessage(response: BotResponse[List[BotUpdate]]): F[Option[Long]] =
