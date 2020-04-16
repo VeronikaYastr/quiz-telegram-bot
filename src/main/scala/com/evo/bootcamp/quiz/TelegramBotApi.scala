@@ -5,15 +5,19 @@ import cats.effect.{Effect, ExitCode, IO, Sync}
 import cats.implicits._
 import io.chrisdavenport.log4cats.Logger
 import org.http4s.client.Client
-import org.http4s.{EntityDecoder, Uri}
-import com.evo.bootcamp.quiz.dto.{BotMessage, BotResponse, BotUpdate}
-import org.http4s.Uri
+import org.http4s.{EntityDecoder, QueryParamEncoder, Uri}
+import com.evo.bootcamp.quiz.dto.{BotMessage, BotResponse, BotUpdate, InlineKeyboardButton}
 import org.http4s.implicits._
 import cats.effect.{Clock, IO, Timer}
 import com.evo.bootcamp.quiz.TelegramBotCommand._
 import org.http4s.circe._
 import io.circe.generic.auto._
+import io.circe.generic.semiauto._
+import io.circe.{Encoder, Json}
+import io.circe.syntax._
 import fs2._
+import org.http4s.QueryParamEncoder.stringQueryParamEncoder
+import org.http4s.{EntityDecoder, QueryParamEncoder, QueryParameterValue, Uri}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -35,12 +39,12 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       .flatMap(response => processMessage(response).map(_.getOrElse(0)))
   }
 
-  def sendMessage(chatId: Long, message: String): F[Unit] = {
+  def sendMessage(chatId: Long, message: String, buttons: List[InlineKeyboardButton] = List.empty): F[Unit] = {
     val uri = botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
       "parse_mode" -> List("Markdown"),
       "text" -> List(message)
-    )
+    ) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
 
     client.expect[Unit](uri)
   }
@@ -64,12 +68,22 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       ).mkString("\n"))
       case c: StartGame => {
         val chatId = c.chatId
-        logic.setQuestionsAmount(10, chatId).void *> sendMessage(chatId, "Your game begins.")
+        logic.initGame(10, chatId).void *> sendMessage(chatId, "Your game begins \\xF0\\x9F\\x98\\x89.")
       }
       case c: Begin => {
         val chatId = c.chatId
-        sendMessage(chatId, logic.getNextQuestion(chatId).map(_.text).getOrElse("Error"))
+        logic.getNextQuestion(chatId).map(x => sendMessage(chatId, x.text))
       }
     }
   }
+}
+
+object TelegramBotApi {
+
+  implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
+
+  implicit val markupEncoder: QueryParamEncoder[List[InlineKeyboardButton]] =
+    (list: List[InlineKeyboardButton]) => {
+      QueryParameterValue(s"""{"inline_keyboard": [${list.asJson.noSpaces}]}""")
+    }
 }
