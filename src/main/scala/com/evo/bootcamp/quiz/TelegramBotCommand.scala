@@ -1,6 +1,6 @@
 package com.evo.bootcamp.quiz
 
-import com.evo.bootcamp.quiz.dto.{BotMessage, BotUpdate}
+import com.evo.bootcamp.quiz.dto.{BotMessage, BotUpdate, CallbackQuery}
 
 sealed trait TelegramBotCommand {
   val chatId: Long
@@ -14,6 +14,8 @@ object TelegramBotCommand {
 
   case class Begin(chatId: Long) extends TelegramBotCommand
 
+  case class UserAnswer(chatId: Long, answerId: Int, questionId: Int) extends TelegramBotCommand
+
   def fromRawMessage(msg: BotUpdate): Option[TelegramBotCommand] = {
     def textCommand: Option[TelegramBotCommand] = msg.message flatMap {
       case BotMessage(_, chat, Some(`help`)) =>
@@ -25,7 +27,15 @@ object TelegramBotCommand {
       case _ => None
     }
 
-    textCommand
+    def callbackCommand: Option[TelegramBotCommand] = msg.callback_query.collect {
+      case CallbackQuery(from, Some(data)) =>
+        data.split(" ").toList match {
+          case answerId :: questionId :: Nil => Some(UserAnswer(from.id, answerId.toInt, questionId.toInt))
+          case _ => None
+        }
+    }.flatten
+
+    callbackCommand orElse textCommand
   }
 
   val help = "?"

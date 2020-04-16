@@ -19,7 +19,6 @@ import scala.concurrent.duration._
 object QuizApp extends IOApp {
   private val token = "1168869271:AAH7ATc4umJxV054BdihWdqcdHsXeZFi50o"
   override implicit val contextShift = IO.contextShift(ExecutionContext.global)
-  override implicit val timer = IO.timer(ExecutionContext.global)
 
   override def run(args: List[String]): IO[ExitCode] =
     BlazeClientBuilder[IO](global).resource.use { client =>
@@ -29,9 +28,10 @@ object QuizApp extends IOApp {
       val logic = new TelegramBotLogic[IO](dao)
       val api = new TelegramBotApi[IO](token, client, logic)
       for {
-        _ <- (new TelegramBotProcess[IO](api)).run
+        _ <- (new TelegramBotProcess[IO](api, logic)).run
       } yield ExitCode.Success
     }
+
 //    BlazeClientBuilder[IO](global).resource.use { client =>
 //      for {
 //        api <- IO { new TelegramBotApi[IO](token, client) }
