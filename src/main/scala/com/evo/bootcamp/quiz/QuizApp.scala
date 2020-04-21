@@ -15,6 +15,7 @@ import com.evo.bootcamp.quiz.dao.{DaoInit, QuestionsDao}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.util.Random
 
 object QuizApp extends IOApp {
   private val token = "1168869271:AAH7ATc4umJxV054BdihWdqcdHsXeZFi50o"

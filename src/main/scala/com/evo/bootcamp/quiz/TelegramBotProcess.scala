@@ -4,17 +4,28 @@ import com.evo.bootcamp.quiz.dto.{BotResponse, BotUpdate, InlineKeyboardButton}
 
 import scala.concurrent.ExecutionContext.global
 import cats.implicits._
-import cats.effect.{ConcurrentEffect, Effect, ExitCode, IO}
+import cats.effect.{ConcurrentEffect, Effect, ExitCode, Fiber, IO}
 import com.evo.bootcamp.quiz.TelegramBotCommand.{Begin, ShowHelp, StartGame, UserAnswer, help, start, stop}
 
-class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: Effect[F]) {
+import scala.util.Random
+
+class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
+
+  def askQuestion(chatId: Long) = F.delay {
+    for (i <- 0 to 10) {
+      println("Hello")
+      println(chatId)
+      Thread.sleep(10000)
+    }
+  }
 
   def run: F[Long] = {
     def loop(offset: Long): F[Long] = {
       api.requestUpdates(offset)
-        .flatMap(response => processMessage(response).map(_.getOrElse(0)))
+        .flatMap(response => processMessage(response).map(_.getOrElse(0L)))
         .flatMap(loop)
     }
+    loop(0)
   }
 
   private def processMessage(response: BotResponse[List[BotUpdate]]): F[Option[Long]] =
@@ -36,10 +47,14 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
       ).mkString("\n"))
       case c: StartGame =>
         val chatId = c.chatId
+        println(chatId)
         // TODO: remove hardcoded amount and send buttons to choose amount
-        logic.initGame(10, chatId) *> api.sendMessage(chatId, "*Your game is started*") *> api.sendMessage(chatId, "Question", List(
-          InlineKeyboardButton("answer", "1 2")
-        ))
+        // logic.initGame(10, chatId) *> api.sendMessage(chatId, "*Your game is started*") *>
+        F.start(askQuestion(chatId)).map(_ => ExitCode.Success)
+
+//          api.sendMessage(chatId, "Question", List(
+//          InlineKeyboardButton("answer", "1 2")
+//        ))
     }
   }
 }
