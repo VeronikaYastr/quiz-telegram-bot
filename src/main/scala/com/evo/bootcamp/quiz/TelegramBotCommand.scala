@@ -10,11 +10,13 @@ object TelegramBotCommand {
 
   case class ShowHelp(chatId: Long) extends TelegramBotCommand
 
+  //case class InitGame(chatId: Long) extends TelegramBotCommand
+
   case class StartGame(chatId: Long) extends TelegramBotCommand
 
-  case class Begin(chatId: Long) extends TelegramBotCommand
+  case class UserQuestionAnswer(chatId: Long, answerId: Int, questionId: Int) extends TelegramBotCommand
 
-  case class UserAnswer(chatId: Long, answerId: Int, questionId: Int) extends TelegramBotCommand
+  case class UserQuestionsAmount(chatId: Long, amount: Int) extends TelegramBotCommand
 
   def fromRawMessage(msg: BotUpdate): Option[TelegramBotCommand] = {
     def textCommand: Option[TelegramBotCommand] = msg.message flatMap {
@@ -22,15 +24,14 @@ object TelegramBotCommand {
         Some(ShowHelp(chat.id))
       case BotMessage(_, chat, Some(`start`)) =>
         Some(StartGame(chat.id))
-      case BotMessage(_, chat, Some(`begin`)) =>
-        Some(Begin(chat.id))
       case _ => None
     }
 
     def callbackCommand: Option[TelegramBotCommand] = msg.callback_query.collect {
       case CallbackQuery(from, Some(data)) =>
         data.split(" ").toList match {
-          case answerId :: questionId :: Nil => Some(UserAnswer(from.id, answerId.toInt, questionId.toInt))
+          case amount :: Nil => Some(UserQuestionsAmount(from.id, amount.toInt))
+          case answerId :: questionId :: Nil => Some(UserQuestionAnswer(from.id, answerId.toInt, questionId.toInt))
           case _ => None
         }
     }.flatten
@@ -40,6 +41,5 @@ object TelegramBotCommand {
 
   val help = "?"
   val start = "/start"
-  val begin = "/begin"
   val stop = "/stop"
 }

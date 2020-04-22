@@ -24,7 +24,7 @@ object QuizApp extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     BlazeClientBuilder[IO](global).resource.use { client =>
       val init = new DaoInit[IO]()
-      val tr = init.transactor(DbConfig("jdbc:postgresql://localhost:5432/postgres", "postgres", "password", "org.postgresql.Driver"))
+      val tr = init.transactor(DbConfig("jdbc:postgresql://localhost:13423/postgres", "postgres", "password", "org.postgresql.Driver"))
       val dao = new QuestionsDao[IO](tr)
       val logic = new TelegramBotLogic[IO](dao)
       val api = new TelegramBotApi[IO](token, client, logic)

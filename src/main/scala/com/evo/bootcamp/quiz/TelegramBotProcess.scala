@@ -5,17 +5,24 @@ import com.evo.bootcamp.quiz.dto.{BotResponse, BotUpdate, InlineKeyboardButton}
 import scala.concurrent.ExecutionContext.global
 import cats.implicits._
 import cats.effect.{ConcurrentEffect, Effect, ExitCode, Fiber, IO}
-import com.evo.bootcamp.quiz.TelegramBotCommand.{Begin, ShowHelp, StartGame, UserAnswer, help, start, stop}
+import com.evo.bootcamp.quiz.TelegramBotCommand.{ShowHelp, StartGame, UserQuestionsAmount, help, start, stop}
 
 import scala.util.Random
 
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
-  def askQuestion(chatId: Long) = F.delay {
-    for (i <- 0 to 10) {
-      println("Hello")
-      println(chatId)
-      Thread.sleep(10000)
+  def askQuestion(chatId: Long): F[Unit] = F.delay {
+    val findQ = for {
+      questions <- logic.getQuestions(chatId)
+      q = questions.findLast(_.rightAnswer == -1) match {
+        case Some(value) => api.sendMessage(chatId, value.text)
+        case None => api.sendMessage(chatId, "Game is over")
+      }
+    } yield q
+
+    for (_ <- 0 to 5) {
+      findQ.flatten
+      Thread.sleep(3000)
     }
   }
 
@@ -46,11 +53,16 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         s"`$stop` - stops the game"
       ).mkString("\n"))
       case c: StartGame =>
-        val chatId = c.chatId
-        println(chatId)
         // TODO: remove hardcoded amount and send buttons to choose amount
-        // logic.initGame(10, chatId) *> api.sendMessage(chatId, "*Your game is started*") *>
-        F.start(askQuestion(chatId)).map(_ => ExitCode.Success)
+        api.sendMessage(c.chatId, "*Your game has started. Choose amount of questions*", List(
+          InlineKeyboardButton("5", "5"),
+          InlineKeyboardButton("10", "10"),
+          InlineKeyboardButton("15", "15"),
+          InlineKeyboardButton("20", "20")
+        ))
+      case c: UserQuestionsAmount =>
+        val chatId = c.chatId
+        logic.initGame(c.amount, chatId) *> F.start(askQuestion(chatId)).map(_ => ExitCode.Success)
 
 //          api.sendMessage(chatId, "Question", List(
 //          InlineKeyboardButton("answer", "1 2")

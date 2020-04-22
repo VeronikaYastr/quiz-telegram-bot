@@ -7,20 +7,20 @@ import com.evo.bootcamp.quiz.dao.models.Question
 
 class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F]) {
 
-  def initGame(amount: Int, chatId: Long): F[List[Int]] = {
-    val res = for {
+  var activeQuestions: Map[Int, List[Question]] = Map[Int, List[Question]]()
+
+  def initGame(amount: Int, chatId: Long): F[Unit] = {
+   for {
       gameId <- questionsDao.initGame(chatId, amount)
       questions <- questionsDao.generateRandomQuestions(amount)
-    } yield questions.map(question => questionsDao.saveQuestionForUser(question.id, chatId, gameId))
-    res.flatMap(_.sequence)
+      _ = activeQuestions += (gameId -> questions)
+    } yield ()
   }
 
-  def getNewQuestion(chatId: Long): F[Question] = {
+  def getQuestions(chatId: Long): F[List[Question]] = {
     for {
       gameId <- questionsDao.getGameId(chatId)
-      questionId <- questionsDao.getQuestionId(chatId, gameId)
-      question <- questionsDao.getQuestion(questionId)
-    } yield question
+    } yield activeQuestions.getOrElse(gameId, List.empty)
   }
 
  /* def getNextQuestion(chatId: Long): F[Question] = {
