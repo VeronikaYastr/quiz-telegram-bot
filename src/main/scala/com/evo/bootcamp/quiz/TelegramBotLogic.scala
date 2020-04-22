@@ -13,9 +13,9 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
    for {
       _ <- questionsDao.initGame(chatId, amount)
       questions <- questionsDao.generateRandomQuestions(amount)
-      qMap = questions.groupBy(_.id)
-      result = questions.map(x => Question(x.id, x.text, qMap.getOrElse(x.id, List.empty).map(x => Answer(x.id, x.answerText, x.answerIsRight)), -1))
-      _ = activeQuestions += (chatId -> result)
+      qMap = questions.groupBy(x => (x.id, x.text))
+      result = qMap.map(_._1).map { case (id, text) => Question(id, text, qMap.getOrElse((id, text), List.empty).map(x => Answer(x.id, x.answerText, x.answerIsRight)), -1) }
+      _ = activeQuestions += (chatId -> result.toList)
    } yield questions
   }
 

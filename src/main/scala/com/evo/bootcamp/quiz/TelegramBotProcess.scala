@@ -12,7 +12,7 @@ import scala.util.Random
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
   def askQuestion(chatId: Long): F[Unit] = F.delay {
-    val findQ = logic.getQuestions(chatId).findLast(_.userAnswer != -1)
+    val findQ = logic.getQuestions(chatId).findLast(_.userAnswer == -1)
 
     for (_ <- 0 to 5) {
       findQ match {
