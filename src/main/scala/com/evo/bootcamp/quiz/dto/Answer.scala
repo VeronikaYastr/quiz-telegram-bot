@@ -1,5 +1,5 @@
 package com.evo.bootcamp.quiz.dto
 
-class Answer {
-
+final case class Answer(id: Int, text: String, isRight: Boolean) {
+  override def toString: String = s"$text"
 }

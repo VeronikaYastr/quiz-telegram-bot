@@ -3,24 +3,24 @@ package com.evo.bootcamp.quiz
 import cats.effect.Effect
 import cats.implicits._
 import com.evo.bootcamp.quiz.dao.QuestionsDao
-import com.evo.bootcamp.quiz.dao.models.Question
+import com.evo.bootcamp.quiz.dto.{Answer, Question}
 
 class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F]) {
 
-  var activeQuestions: Map[Int, List[Question]] = Map[Int, List[Question]]()
+  var activeQuestions: Map[Long, List[Question]] = Map[Long, List[Question]]()
 
   def initGame(amount: Int, chatId: Long): F[Unit] = {
    for {
-      gameId <- questionsDao.initGame(chatId, amount)
+      _ <- questionsDao.initGame(chatId, amount)
       questions <- questionsDao.generateRandomQuestions(amount)
-      _ = activeQuestions += (gameId -> questions)
-    } yield ()
+      qMap = questions.groupBy(_.id)
+      result = questions.map(x => Question(x.id, x.text, qMap.getOrElse(x.id, List.empty).map(x => Answer(x.id, x.answerText, x.answerIsRight)), -1))
+      _ = activeQuestions += (chatId -> result)
+   } yield questions
   }
 
-  def getQuestions(chatId: Long): F[List[Question]] = {
-    for {
-      gameId <- questionsDao.getGameId(chatId)
-    } yield activeQuestions.getOrElse(gameId, List.empty)
+  def getQuestions(chatId: Long): List[Question] = {
+    activeQuestions.getOrElse(chatId, List.empty)
   }
 
  /* def getNextQuestion(chatId: Long): F[Question] = {

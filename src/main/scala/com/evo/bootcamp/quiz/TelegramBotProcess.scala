@@ -12,16 +12,13 @@ import scala.util.Random
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
   def askQuestion(chatId: Long): F[Unit] = F.delay {
-    val findQ = for {
-      questions <- logic.getQuestions(chatId)
-      q = questions.findLast(_.rightAnswer == -1) match {
-        case Some(value) => api.sendMessage(chatId, value.text)
-        case None => api.sendMessage(chatId, "Game is over")
-      }
-    } yield q
+    val findQ = logic.getQuestions(chatId).findLast(_.userAnswer != -1)
 
     for (_ <- 0 to 5) {
-      findQ.flatten
+      findQ match {
+        case None => api.sendMessage(chatId, "Game is over")
+        case Some(value) => api.sendMessage(chatId, value.text,  value.answers.map(x => InlineKeyboardButton(s"${x.text}", s"${x.id} ${value.id}")))
+      }
       Thread.sleep(3000)
     }
   }
