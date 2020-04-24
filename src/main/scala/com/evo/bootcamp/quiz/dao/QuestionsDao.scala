@@ -13,18 +13,13 @@ import doobie.postgres._
 
 class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
 
- /* def getQuestions: F[List[Question]] = {
-    val queryQuestions = sql"select id, rightAnswer, text, category, likesCount, disLikesCount from questions;";
-    queryQuestions.queryWithLogHandler[Question](LogHandler.jdkLogHandler).to[List].transact(xa)
-  }*/
-
   def initGame(userId: Long, amount: Int): F[Int] = {
     val initGame = sql"insert into game (userId, amount) values ($userId, $amount) RETURNING id;"
     initGame.query[Int].unique.transact(xa)
   }
 
   def generateRandomQuestions(amount: Int): F[List[QuestionWithAnswer]] = {
-    val queryQuestions = sql"select q.id, q.text, a.id, a.text, a.isRight from questions q inner join answers a on q.id = a.questionid order by random() limit $amount "
+    val queryQuestions = sql"select q.id, q.text, a.id, a.text, a.isRight from (select * from questions order by random() limit $amount) q inner join answers a on q.id = a.questionid"
     queryQuestions.queryWithLogHandler[(Int, String, Int, String, Boolean)](LogHandler.jdkLogHandler).map{case (qId, qt, aId, at, isR) => QuestionWithAnswer(qId, qt, aId, at, isR)}.to[List].transact(xa)
   }
 

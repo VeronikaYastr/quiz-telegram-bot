@@ -11,10 +11,10 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
 
   def initGame(amount: Int, chatId: Long): F[Unit] = {
    for {
-      _ <- questionsDao.initGame(chatId, amount)
+      //_ <- questionsDao.initGame(chatId, amount)
       questions <- questionsDao.generateRandomQuestions(amount)
       qMap = questions.groupBy(x => (x.id, x.text))
-      result = qMap.map(_._1).map { case (id, text) => Question(id, text, qMap.getOrElse((id, text), List.empty).map(x => Answer(x.id, x.answerText, x.answerIsRight)), -1) }
+      result = qMap.map(_._1).map { case (id, text) => Question(id, text, qMap.getOrElse((id, text), List.empty).map(x => Answer(x.answerId, x.answerText, x.answerIsRight)), -1) }
       _ = activeQuestions += (chatId -> result.toList)
    } yield questions
   }
@@ -23,18 +23,13 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
     activeQuestions.getOrElse(chatId, List.empty)
   }
 
- /* def getNextQuestion(chatId: Long): F[Question] = {
+  def getRightAnswer(chatId: Long, questionId: Int, answerId: Int): Option[Answer] = {
+    val questions = activeQuestions.getOrElse(chatId, List.empty)
+    questions.find(_.id == questionId).map(_.answers).flatMap(a => a.find(_.isRight))
+  }
 
-    def generateAndCheck: F[Question] = for {
-      question <- questionsDao.generateRandomQuestion()
-      gameId <- questionsDao.getGameId(chatId)
-      qId <- questionsDao.checkUniqueQuestion(chatId, gameId, question.id)
-      _ = qId match {
-        case None => questionsDao.saveQuestionForUser(question.id, chatId, gameId)
-        case Some(_) => generateAndCheck
-      }
-    } yield question
-
-    generateAndCheck
-  }*/
+  def getAnswerById(chatId: Long, questionId: Int, answerId: Int): Option[Answer] = {
+    val questions = activeQuestions.getOrElse(chatId, List.empty)
+    questions.find(_.id == questionId).map(_.answers).flatMap(a => a.find(_.id == answerId))
+  }
 }

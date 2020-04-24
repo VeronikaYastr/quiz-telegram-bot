@@ -28,9 +28,9 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
   implicit val decoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
   implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
 
-  implicit val markupEncoder: QueryParamEncoder[List[InlineKeyboardButton]] =
-    (list: List[InlineKeyboardButton]) => {
-      QueryParameterValue(s"""{"inline_keyboard": [${list.asJson.noSpaces}]}""")
+  implicit val markupEncoder: QueryParamEncoder[List[List[InlineKeyboardButton]]] =
+    (list: List[List[InlineKeyboardButton]]) => {
+      QueryParameterValue(s"""{"inline_keyboard": ${list.asJson}}""")
     }
 
   def putStrLn(s: BotResponse[List[BotUpdate]]): F[Unit] = F.delay(println(s))
@@ -42,10 +42,9 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       "allowed_updates" -> List("""["message", "callback_query"]""")
     )
     client.expect[BotResponse[List[BotUpdate]]](uri)
-      //.flatMap(response => processMessage(response).map(_.getOrElse(0)))
   }
 
-  def sendMessage(chatId: Long, message: String, buttons: List[InlineKeyboardButton] = List.empty): F[Unit] = {
+  def sendMessage(chatId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = {
     val uri = (botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
       "parse_mode" -> List("Markdown"),
