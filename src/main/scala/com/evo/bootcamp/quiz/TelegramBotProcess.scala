@@ -16,11 +16,19 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
 
   def getLikeButtons(questionId: Int): List[List[InlineKeyboardButton]] = List(List(InlineKeyboardButton("\uD83D\uDC4D", s"$questionId like"), InlineKeyboardButton("\uD83D\uDC4E", s"$questionId dislike")))
 
-  def askQuestion(chatId: Long): F[List[Unit]] = {
+  def askQuestion(chatId: Long): F[MessageResponse] = {
     val questions = logic.getQuestions(chatId)
     questions.map(q => sendAndCheck(chatId, q.id, s"*${q.text}*", q.answers.grouped(2)
-      .map(ansGroup => ansGroup.map(ans => InlineKeyboardButton(s"${ans.text}", s"${ans.id} ${ans.text} ${ans.isRight.getOrElse(false)} ${q.id}"))).toList))
+      .map(ansGroup => ansGroup.map(ans => InlineKeyboardButton(s"${ans.text}", s"${ans.id} ${ans.text} ${ans.isRight} ${q.id}"))).toList))
       .sequence
+      .flatMap(_ => sendResult(chatId))
+  }
+
+  def sendResult(chatId: Long): F[MessageResponse] = {
+    logic.getResult(chatId) match {
+      case Some(value) => api.sendMessage(chatId, s"Игра закончена 🥳 \nВы ответили правильно на *${value.rightAnswersAmount}* из *${value.totalAmount}* вопросов")
+      case None => api.sendMessage(chatId, "Произошла ошибка")
+    }
   }
 
   def sendAndCheck(chatId: Long, questionId: Int, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = for {
@@ -39,7 +47,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
     val answerText = userAnswer.map(_.text).getOrElse("")
     val rightAnswer = logic.getRightAnswer(chatId, questionId).map(_.text).getOrElse("")
     val resAnswer = {
-      userAnswer.flatMap(_.isRight) match {
+      userAnswer.map(_.isRight) match {
         case None => "нет ответа \uD83D\uDE41"
         case Some(value) => if (value) s"${answerText}    ✔" else s"${answerText}    ❌"
       }

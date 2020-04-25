@@ -34,13 +34,4 @@ object QuizApp extends IOApp {
         } yield ExitCode.Success
       }
     }
-
-//    BlazeClientBuilder[IO](global).resource.use { client =>
-//      for {
-//        api <- IO { new TelegramBotApi[IO](token, client) }
-//        _ <- IO(new TelegramBotProcess[IO](api)).run().unsafeRunSync
-//      } yield ()
-//    }.as(ExitCode.Success)
-
-
 }

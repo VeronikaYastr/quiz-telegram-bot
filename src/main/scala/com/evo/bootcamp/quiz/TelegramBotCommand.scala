@@ -32,7 +32,7 @@ object TelegramBotCommand {
         data.split(" ").toList match {
           case amount :: Nil => Some(UserQuestionsAmount(from.id, amount.toInt))
           case questionId :: userLike :: Nil => Some(QuestionLike(from.id, questionId.toInt, userLike == like))
-          case ansId :: ansText :: ansIsRight :: questionId :: Nil => Some(UserQuestionAnswer(from.id, Answer(ansId.toInt, ansText, ansIsRight.toBooleanOption), questionId.toInt))
+          case ansId :: ansText :: ansIsRight :: questionId :: Nil => Some(UserQuestionAnswer(from.id, Answer(ansId.toInt, ansText, ansIsRight.toBoolean), questionId.toInt))
           case _ => None
         }
     }.flatten
