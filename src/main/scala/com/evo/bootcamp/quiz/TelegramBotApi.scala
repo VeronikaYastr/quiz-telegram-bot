@@ -6,17 +6,17 @@ import cats.implicits._
 import io.chrisdavenport.log4cats.Logger
 import org.http4s.client.Client
 import org.http4s.{EntityDecoder, QueryParamEncoder, Uri}
-import com.evo.bootcamp.quiz.dto.{BotMessage, BotResponse, BotUpdate, InlineKeyboardButton}
+import com.evo.bootcamp.quiz.dto.{BotMessage, BotResponse, BotUpdate, InlineKeyboardButton, MessageResponse}
 import org.http4s.implicits._
 import com.evo.bootcamp.quiz.TelegramBotCommand._
 import org.http4s.circe._
 import io.circe.generic.auto._
 import io.circe.generic.semiauto._
-import io.circe.{Encoder, Json}
+import io.circe.{Decoder, Encoder, Json, HCursor}
 import io.circe.syntax._
 import fs2._
 import org.http4s.QueryParamEncoder.stringQueryParamEncoder
-import org.http4s.{EntityDecoder, QueryOps, QueryParamEncoder, QueryParameterValue, Uri}
+import org.http4s.{EntityDecoder, QueryParamEncoder, QueryParameterValue, Uri}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -25,7 +25,9 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
   (implicit F: Effect[F], contextShift: ContextShift[F])
 {
   private val botApiUri: Uri = uri"https://api.telegram.org" / s"bot$token"
-  implicit val decoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
+  implicit val botUpdatesDecoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
+
+  implicit val messageUpdatesDecoder: EntityDecoder[F, MessageResponse] = jsonOf[F, MessageResponse]
   implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
 
   implicit val markupEncoder: QueryParamEncoder[List[List[InlineKeyboardButton]]] =
@@ -44,6 +46,16 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     client.expect[BotResponse[List[BotUpdate]]](uri)
   }
 
+  def editMessage(chatId: Long, messageId: Long, message: String): F[Unit] = {
+    val uri = botApiUri / "getUpdates" =? Map(
+      "chat_id" -> List(chatId.toString),
+      "message_id" -> List(messageId.toString),
+      "parse_mode" -> List("Markdown"),
+      "test" -> List(message)
+    )
+    client.expect[Unit](uri)
+  }
+
   def sendMessage(chatId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = {
     val uri = (botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
@@ -51,6 +63,7 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
       "text" -> List(message)
     )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
 
-    client.expect[Unit](uri)
+    client.expect[MessageResponse](uri)
+      .map(println)
   }
 }

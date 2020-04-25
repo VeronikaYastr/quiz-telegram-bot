@@ -20,9 +20,9 @@ object TelegramBotCommand {
 
   def fromRawMessage(msg: BotUpdate): Option[TelegramBotCommand] = {
     def textCommand: Option[TelegramBotCommand] = msg.message flatMap {
-      case BotMessage(_, chat, Some(`help`)) =>
+      case BotMessage(chat, Some(`help`)) =>
         Some(ShowHelp(chat.id))
-      case BotMessage(_, chat, Some(`start`)) =>
+      case BotMessage(chat, Some(`start`)) =>
         Some(StartGame(chat.id))
       case _ => None
     }
