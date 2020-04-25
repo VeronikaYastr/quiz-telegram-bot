@@ -17,11 +17,6 @@ val akkaVersion = "2.6.4"
 val doobieVersion = "0.8.8"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-http" % "10.1.11",
-  "de.heikoseeberger" %% "akka-http-circe" % "1.31.0",
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "org.typelevel" %% "cats-core" % "2.1.0",
   "org.http4s" %% "http4s-dsl" % http4sVersion,
   "org.http4s" %% "http4s-blaze-server" % http4sVersion,
@@ -29,6 +24,7 @@ libraryDependencies ++= Seq(
   "org.http4s" %% "http4s-circe" % http4sVersion,
   "io.chrisdavenport" %% "log4cats-slf4j" % "1.0.1",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "org.flywaydb" % "flyway-core" % "5.2.4",
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-generic-extras" % circeVersion,
@@ -36,6 +32,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % circeVersion,
   "io.circe" %% "circe-config" % "0.7.0",
   "org.tpolecat" %% "doobie-core" % doobieVersion,
+  "org.tpolecat" %% "doobie-hikari" % "0.8.8",
   "org.tpolecat" %% "doobie-postgres" % doobieVersion,
 )
 

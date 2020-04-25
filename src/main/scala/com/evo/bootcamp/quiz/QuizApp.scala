@@ -20,17 +20,19 @@ import scala.util.Random
 object QuizApp extends IOApp {
   private val token = "1168869271:AAH7ATc4umJxV054BdihWdqcdHsXeZFi50o"
   override implicit val contextShift = IO.contextShift(ExecutionContext.global)
+  private val dbConfig = DbConfig("jdbc:postgresql://localhost:13423/postgres", "postgres", "password", "org.postgresql.Driver")
 
   override def run(args: List[String]): IO[ExitCode] =
     BlazeClientBuilder[IO](global).resource.use { client =>
-      val init = new DaoInit[IO]()
-      val tr = init.transactor(DbConfig("jdbc:postgresql://localhost:13423/postgres", "postgres", "password", "org.postgresql.Driver"))
-      val dao = new QuestionsDao[IO](tr)
-      val logic = new TelegramBotLogic[IO](dao)
-      val api = new TelegramBotApi[IO](token, client, logic)
-      for {
-        _ <- (new TelegramBotProcess[IO](api, logic)).run
-      } yield ExitCode.Success
+      DaoInit.transactor[IO](dbConfig).use { db =>
+        for {
+          _ <- DaoInit.initialize(db)
+          dao = new QuestionsDao[IO](db)
+          logic = new TelegramBotLogic[IO](dao)
+          api = new TelegramBotApi[IO](token, client, logic)
+          _ <- (new TelegramBotProcess[IO](api, logic)).run
+        } yield ExitCode.Success
+      }
     }
 
 //    BlazeClientBuilder[IO](global).resource.use { client =>
