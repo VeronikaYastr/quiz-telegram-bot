@@ -14,7 +14,7 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
       //_ <- questionsDao.initGame(chatId, amount)
       questions <- questionsDao.generateRandomQuestions(amount)
       qMap = questions.groupBy(x => (x.id, x.text))
-      result = qMap.map(_._1).map { case (id, text) => Question(id, text, qMap.getOrElse((id, text), List.empty).map(x => Answer(x.answerId, x.answerText, x.answerIsRight)), -1) }
+      result = qMap.map(_._1).map { case (id, text) => Question(id, text, qMap.getOrElse((id, text), List.empty).map(x => Answer(x.answerId, x.answerText, Some(x.answerIsRight))), Answer()) }
       _ = activeQuestions += (chatId -> result.toList)
    } yield questions
   }
@@ -23,13 +23,25 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
     activeQuestions.getOrElse(chatId, List.empty)
   }
 
-  def getRightAnswer(chatId: Long, questionId: Int, answerId: Int): Option[Answer] = {
+  def setUserAnswer(chatId: Long, questionId: Int, answer: Answer): Unit = {
     val questions = activeQuestions.getOrElse(chatId, List.empty)
-    questions.find(_.id == questionId).map(_.answers).flatMap(a => a.find(_.isRight))
+    questions.find(_.id == questionId).foreach(x => x.userAnswer = answer)
   }
 
-  def getAnswerById(chatId: Long, questionId: Int, answerId: Int): Option[Answer] = {
+  def getUserAnswer(chatId: Long, questionId: Int): Option[Answer] = {
     val questions = activeQuestions.getOrElse(chatId, List.empty)
-    questions.find(_.id == questionId).map(_.answers).flatMap(a => a.find(_.id == answerId))
+    questions.find(_.id == questionId).map(_.userAnswer)
+  }
+
+  def getRightAnswer(chatId: Long, questionId: Int): Option[Answer] = {
+    val questions = activeQuestions.getOrElse(chatId, List.empty)
+    questions.find(_.id == questionId).map(_.answers).flatMap(a => a.find(_.isRight.getOrElse(false)))
+  }
+
+  def setQuestionUserLike(chatId: Long, questionId: Int, userLike: Boolean): F[Unit] = {
+    for {
+      likeInfo <- questionsDao.getQuestionsLikeInfo(questionId)
+      _ <- questionsDao.setQuestionLikeInfo(questionId, userLike, likeInfo)
+    } yield ()
   }
 }

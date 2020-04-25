@@ -1,6 +1,5 @@
 package com.evo.bootcamp.quiz
 
-
 import cats.effect.{Clock, ContextShift, Effect, ExitCode, IO, Sync, Timer}
 import cats.implicits._
 import io.chrisdavenport.log4cats.Logger
@@ -46,17 +45,25 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     client.expect[BotResponse[List[BotUpdate]]](uri)
   }
 
-  def editMessage(chatId: Long, messageId: Long, message: String): F[Unit] = {
-    val uri = botApiUri / "getUpdates" =? Map(
+  def editMessage(chatId: Long, messageId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = {
+    val uri = (botApiUri / "editMessageText" =? Map(
       "chat_id" -> List(chatId.toString),
       "message_id" -> List(messageId.toString),
       "parse_mode" -> List("Markdown"),
-      "test" -> List(message)
+      "text" -> List(message)
+    )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
+    client.expect[Unit](uri)
+  }
+
+  def deleteMessage(chatId: Long, messageId: Long): F[Unit] = {
+    val uri = botApiUri / "deleteMessage" =? Map(
+      "chat_id" -> List(chatId.toString),
+      "message_id" -> List(messageId.toString)
     )
     client.expect[Unit](uri)
   }
 
-  def sendMessage(chatId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = {
+  def sendMessage(chatId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[MessageResponse] = {
     val uri = (botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
       "parse_mode" -> List("Markdown"),
@@ -64,6 +71,5 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
 
     client.expect[MessageResponse](uri)
-      .map(println)
   }
 }

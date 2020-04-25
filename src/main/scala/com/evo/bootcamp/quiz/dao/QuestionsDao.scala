@@ -3,7 +3,7 @@ package com.evo.bootcamp.quiz.dao
 import cats.data.NonEmptyList
 import cats.effect.IO._
 import cats.effect._
-import com.evo.bootcamp.quiz.dao.models.QuestionWithAnswer
+import com.evo.bootcamp.quiz.dao.models.{LikeInfo, QuestionWithAnswer}
 import com.evo.bootcamp.quiz.dto.{Answer, Question}
 import doobie._
 import doobie.util.transactor.Transactor
@@ -33,10 +33,16 @@ class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
     getQuestionId.query[Int].unique.transact(xa)
   }
 
- /* def getAnswersForQuestion(questionId: Int): F[List[Answer]] = {
-    val getAnswersForQuestion = sql"select * from answers where questionId=$questionId;";
-    getAnswersForQuestion.query[List[Answer]].unique.transact(xa)
-  }*/
+  def setQuestionLikeInfo(questionId: Int, userLike: Boolean, likeInfo: LikeInfo): F[Int] = {
+    if (userLike) likeInfo.likesCount += 1 else likeInfo.dislikesCount += 1
+    val setQuestionLikeInfo = sql"update questions set likesCount = ${likeInfo.likesCount}, dislikesCount = ${likeInfo.dislikesCount} where id = $questionId"
+    setQuestionLikeInfo.update.run.transact(xa)
+  }
+
+  def getQuestionsLikeInfo(questionId: Int): F[LikeInfo] = {
+    val getQuestionLikeInfo = sql"select likesCount, dislikesCount from questions where id = $questionId"
+    getQuestionLikeInfo.queryWithLogHandler[(Int, Int)](LogHandler.jdkLogHandler).map{case (lCount, dCount) => LikeInfo(lCount, dCount)}.unique.transact(xa)
+  }
 
   def getGameId(userId: Long): F[Int] = {
     val getGameId = sql"select id from game where userId=$userId and create_date=(select max(create_date) from game where userId=$userId)"
