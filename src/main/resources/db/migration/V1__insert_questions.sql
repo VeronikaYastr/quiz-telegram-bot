@@ -7,7 +7,7 @@ INSERT INTO public.questions (id, text, category, likescount, dislikescount) VAL
 INSERT INTO public.questions (id, text, category, likescount, dislikescount) VALUES (7, 'Столица Сан-Томе и Принсипи?', 'География', 0, 0);
 
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (8, 'Галлей', 1, true);
-INSERT INTO public.answers (id, text, questionid, isright) VALUES (12, 'Флейта-позвоночник', 2, true);
+INSERT INTO public.answers (id, text, questionid, isright) VALUES (12, 'Флейта-позвоночник 🎺', 2, true);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (16, '14', 4, true);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (18, 'Франция', 3, true);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (25, '5', 5, true);
@@ -15,8 +15,8 @@ INSERT INTO public.answers (id, text, questionid, isright) VALUES (27, 'Гали
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (31, 'Сан-Томе', 7, true);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (15, '12', 4, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (14, '10', 4, false);
-INSERT INTO public.answers (id, text, questionid, isright) VALUES (9, 'Свирель-губы', 2, false);
-INSERT INTO public.answers (id, text, questionid, isright) VALUES (11, 'Скрипка-ладони', 2, false);
+INSERT INTO public.answers (id, text, questionid, isright) VALUES (9, 'Свирель-губы 💋', 2, false);
+INSERT INTO public.answers (id, text, questionid, isright) VALUES (11, 'Скрипка-ладони 🎻', 2, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (10, 'Коперник', 1, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (7, 'Кеплер', 1, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (6, 'Галилей', 1, false);
@@ -33,4 +33,4 @@ INSERT INTO public.answers (id, text, questionid, isright) VALUES (23, '3', 5, f
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (22, '2', 5, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (17, '16', 4, false);
 INSERT INTO public.answers (id, text, questionid, isright) VALUES (19, 'Германия', 3, false);
-INSERT INTO public.answers (id, text, questionid, isright) VALUES (13, 'Барабан-нервы', 2, false);
+INSERT INTO public.answers (id, text, questionid, isright) VALUES (13, 'Барабан-нервы 🥁', 2, false);

@@ -2,8 +2,6 @@ package com.evo.bootcamp.quiz.dao
 
 import cats.effect.{Async, Blocker, ConcurrentEffect, ContextShift, Effect, IO, Resource}
 import com.evo.bootcamp.quiz.config.DbConfig
-import doobie.Fragment
-import doobie.util.transactor.Transactor
 import doobie.hikari.HikariTransactor
 import doobie.postgres._
 import doobie.util.ExecutionContexts
@@ -34,5 +32,4 @@ object DaoInit {
         blocker
       )
     } yield transactor
-
 }
