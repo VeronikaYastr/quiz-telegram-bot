@@ -1,34 +1,34 @@
 package com.evo.bootcamp.quiz
 
-import java.net.URLEncoder
-import java.nio.charset.{Charset, StandardCharsets}
-
-import com.evo.bootcamp.quiz.dto.{BotResponse, BotUpdate, InlineKeyboardButton, MessageResponse}
-
 import scala.concurrent.ExecutionContext.global
 import cats.implicits._
-import cats.effect.{ConcurrentEffect, Effect, ExitCode, Fiber, IO}
-import com.evo.bootcamp.quiz.TelegramBotCommand.{QuestionLike, ShowHelp, StartGame, UserQuestionAnswer, UserQuestionsAmount, help, start, stop}
-
-import scala.util.Random
+import cats.effect.ConcurrentEffect
+import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, QuestionLike, ShowHelp, StartGame, UserQuestionAnswer, UserQuestionsAmount, help, start, stop}
+import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
+import com.evo.bootcamp.quiz.dto.AnswerDto
+import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
-  def getLikeButtons(questionId: Int): List[List[InlineKeyboardButton]] = List(List(InlineKeyboardButton("\uD83D\uDC4D", s"$questionId like"), InlineKeyboardButton("\uD83D\uDC4E", s"$questionId dislike")))
+  def getLikeButtons(questionId: Int): List[List[InlineKeyboardButton]] = List(
+    List(
+      InlineKeyboardButton("\uD83D\uDC4D", s"$questionId like"),
+      InlineKeyboardButton("\uD83D\uDC4E", s"$questionId dislike")
+    ))
+
+  def convertAnswerToButton: (AnswerDto, QuestionId) => InlineKeyboardButton = (ans, qId) =>
+    InlineKeyboardButton(s"$ans", s"${ans.id} $ans ${ans.isRight} $qId")
+
+  def convertAnswerButtonsTo: (InlineKeyboardButton) => InlineKeyboardButton = (answerButton) =>
+    InlineKeyboardButton(s"${answerButton.text}", answerButton.callback_data)
 
   def askQuestion(chatId: Long): F[MessageResponse] = {
-    val questions = logic.getQuestions(chatId)
-    questions.map(q => sendAndCheck(chatId, q.id, s"*${q.text}*", q.answers.grouped(2)
-      .map(ansGroup => ansGroup.map(ans => InlineKeyboardButton(s"${ans.text}", s"${ans.id} ${ans.text} ${ans.isRight} ${q.id}"))).toList))
+    val questionsInfo = logic.getQuestionsInfo(chatId)
+    questionsInfo.map(info => sendAndCheck(chatId, info.question.id, s"*${info.question}*",
+      info.question.answers.grouped(2)
+      .map(ansGroup => ansGroup.map(convertAnswerToButton(_, info.question.id))).toList))
       .sequence
-      .flatMap(_ => sendResult(chatId))
-  }
-
-  def sendResult(chatId: Long): F[MessageResponse] = {
-    logic.getResult(chatId) match {
-      case Some(value) => api.sendMessage(chatId, s"Игра закончена 🥳 \nВы ответили правильно на *${value.rightAnswersAmount}* из *${value.totalAmount}* вопросов")
-      case None => api.sendMessage(chatId, "Произошла ошибка")
-    }
+      .flatMap(_ => sendGameResult(chatId))
   }
 
   def sendAndCheck(chatId: Long, questionId: Int, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = for {
@@ -42,7 +42,15 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
     _               <- F.delay{ Thread.sleep(1000) }
   } yield ()
 
-  def resolveUserAnswer(chatId: Long, questionId: Int): F[MessageResponse] = {
+  def sendGameResult(chatId: Long): F[MessageResponse] = {
+    logic.getGameResult(chatId)  match {
+      case Some(value) => api.sendMessage(chatId, s"Игра закончена 🥳 " +
+        s"\nВы ответили правильно на *${value.rightAnswersAmount}* из *${value.totalAmount}* вопросов")
+      case None => api.sendMessage(chatId, "Произошла ошибка.")
+    }
+  }
+
+  def resolveUserAnswer(chatId: ChatId, questionId: QuestionId): F[MessageResponse] = {
     val userAnswer = logic.getUserAnswer(chatId, questionId)
     val answerText = userAnswer.map(_.text).getOrElse("")
     val rightAnswer = logic.getRightAnswer(chatId, questionId).map(_.text).getOrElse("")
@@ -64,7 +72,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
     loop(0)
   }
 
-  private def processMessage(response: BotResponse[List[BotUpdate]]): F[Option[Long]] =
+  private def processMessage(response: BotResponse[List[BotUpdateMessage]]): F[Option[Long]] =
     response.result match {
       case Nil =>
         F.pure(None)

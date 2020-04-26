@@ -1,7 +1,7 @@
 package com.evo.bootcamp.quiz.dao
 
 import cats.effect._
-import com.evo.bootcamp.quiz.dao.MainDao.QuestionId
+import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
 import com.evo.bootcamp.quiz.dao.models.{Answer, LikeInfo, QuestionWithAnswer}
 import doobie._
 import doobie.util.transactor.Transactor
@@ -9,7 +9,7 @@ import doobie.implicits._
 import doobie.implicits.javatime._
 import doobie.postgres._
 
-class MainDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
+class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
 
   def generateRandomQuestions(amount: Int): F[List[QuestionWithAnswer]] = {
     val queryQuestions = sql"select q.id, q.text, a.id, a.text, a.isRight from (select * from questions order by random() limit $amount) q inner join answers a on q.id = a.questionid"
@@ -29,7 +29,7 @@ class MainDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
 
 }
 
-package object MainDao {
+object QuestionsDao {
   type AnswerId = Int
   type QuestionId = Int
 }

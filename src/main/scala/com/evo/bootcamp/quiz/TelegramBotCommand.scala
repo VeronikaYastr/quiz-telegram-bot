@@ -1,29 +1,38 @@
 package com.evo.bootcamp.quiz
 
-import com.evo.bootcamp.quiz.dto.{Answer, BotMessage, BotUpdate, CallbackQuery}
+import com.evo.bootcamp.quiz.TelegramBotCommand.ChatId
+import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
+import com.evo.bootcamp.quiz.dto.api.{BotUpdateMessage, CallbackQuery, Message}
+import com.evo.bootcamp.quiz.dto.AnswerDto
 
 sealed trait TelegramBotCommand {
-  val chatId: Long
+  val chatId: ChatId
 }
 
 object TelegramBotCommand {
 
-  case class ShowHelp(chatId: Long) extends TelegramBotCommand
+  type ChatId = Long
 
-  case class StartGame(chatId: Long) extends TelegramBotCommand
+  case class ShowHelp(chatId: ChatId) extends TelegramBotCommand
 
-  case class UserQuestionAnswer(chatId: Long, answer: Answer, questionId: Int) extends TelegramBotCommand
+  case class StartGame(chatId: ChatId) extends TelegramBotCommand
 
-  case class UserQuestionsAmount(chatId: Long, amount: Int) extends TelegramBotCommand
+  case class StopGame(chatId: ChatId) extends TelegramBotCommand
 
-  case class QuestionLike(chatId: Long, questionId: Int, like: Boolean) extends TelegramBotCommand
+  case class UserQuestionAnswer(chatId: ChatId, answer: AnswerDto, questionId: QuestionId) extends TelegramBotCommand
 
-  def fromRawMessage(msg: BotUpdate): Option[TelegramBotCommand] = {
+  case class UserQuestionsAmount(chatId: ChatId, amount: Int) extends TelegramBotCommand
+
+  case class QuestionLike(chatId: ChatId, questionId: QuestionId, like: Boolean) extends TelegramBotCommand
+
+  def fromRawMessage(msg: BotUpdateMessage): Option[TelegramBotCommand] = {
     def textCommand: Option[TelegramBotCommand] = msg.message flatMap {
-      case BotMessage(chat, Some(`help`)) =>
+      case Message(chat, Some(`help`)) =>
         Some(ShowHelp(chat.id))
-      case BotMessage(chat, Some(`start`)) =>
+      case Message(chat, Some(`start`)) =>
         Some(StartGame(chat.id))
+      case Message(chat, Some(`stop`)) =>
+        Some(StopGame(chat.id))
       case _ => None
     }
 
@@ -32,7 +41,7 @@ object TelegramBotCommand {
         data.split(" ").toList match {
           case amount :: Nil => Some(UserQuestionsAmount(from.id, amount.toInt))
           case questionId :: userLike :: Nil => Some(QuestionLike(from.id, questionId.toInt, userLike == like))
-          case ansId :: ansText :: ansIsRight :: questionId :: Nil => Some(UserQuestionAnswer(from.id, Answer(ansId.toInt, ansText, ansIsRight.toBoolean), questionId.toInt))
+          case ansId :: ansText :: ansIsRight :: questionId :: Nil => Some(UserQuestionAnswer(from.id, AnswerDto(ansId.toInt, ansText, ansIsRight.toBoolean), questionId.toInt))
           case _ => None
         }
     }.flatten
