@@ -86,7 +86,10 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         logic.setQuestionsAmount(c.chatId, c.amount)
         api.deleteMessage(chatId, c.messageId) *> logic.getAllCategories
           .map(x => x.map(res => List(convertCategoryToButton(res, chatId))))
-          .flatMap(api.sendMessage(chatId, "\uD83D\uDC68\u200D\uD83C\uDF93 Выберите категорию вопросов", _)).map(_ => ())
+          .flatMap(x => api
+            .sendMessage(chatId,
+              "\uD83D\uDC68\u200D\uD83C\uDF93 Выберите категорию вопросов",
+              List(convertCategoryToButton(QuestionCategoryDto(0, "❓Все"), chatId)) :: x)).map(_ => ())
       case c: QuestionsCategory =>
         val chatId = c.chatId
         logic.setQuestionsCategory(chatId, c.categoryId)
