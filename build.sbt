@@ -34,6 +34,8 @@ libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
   "org.tpolecat" %% "doobie-hikari" % "0.8.8",
   "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+  "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test,
+  "org.mockito" %% "mockito-scala" % "1.11.2" % Test,
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
