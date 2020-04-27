@@ -1,9 +1,11 @@
 package com.evo.bootcamp.quiz.dto
 
-case class QuestionDto(id: Int, text: String, answers: List[AnswerDto]) {
+import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
+
+case class QuestionDto(id: QuestionId, text: String, answers: List[AnswerDto]) {
   override def toString: String = s"$text"
 }
 
-case class QuestionInfoDto(question: QuestionDto, rightAnswer: Option[AnswerDto], var userAnswer: Option[AnswerDto]) {
+case class QuestionInfoDto(question: QuestionDto, var userAnswers: List[AnswerDto]) {
   override def toString: String = s"$question"
 }

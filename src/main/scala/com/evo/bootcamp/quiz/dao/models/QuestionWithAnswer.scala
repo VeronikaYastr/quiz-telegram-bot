@@ -1,3 +1,5 @@
 package com.evo.bootcamp.quiz.dao.models
 
-final case class QuestionWithAnswer(id: Int, text: String, answer: Answer)
+import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
+
+final case class QuestionWithAnswer(id: QuestionId, text: String, answer: Answer)

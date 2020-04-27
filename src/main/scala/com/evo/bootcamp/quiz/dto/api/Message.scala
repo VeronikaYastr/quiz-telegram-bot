@@ -1,3 +1,5 @@
 package com.evo.bootcamp.quiz.dto.api
 
-final case class Message(chat: Chat, text: Option[String])
+import com.evo.bootcamp.quiz.TelegramBotCommand.MessageId
+
+final case class Message(message_id: MessageId, chat: Chat, text: Option[String])
