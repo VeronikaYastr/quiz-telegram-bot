@@ -37,7 +37,7 @@ object TelegramBotCommand {
         Some(ShowHelp(chat.id))
       case Message(_, chat, Some(`startWithName`) | Some(`start`)) =>
         Some(StartGame(chat.id))
-      case Message(messageId, chat, Some(`stop`) | Some(s"${`stop`}${`botName`}")) =>
+      case Message(_, chat, Some(`stop`) | Some(s"${`stop`}${`botName`}")) =>
         Some(StopGame(chat.id))
       case _ => None
     }

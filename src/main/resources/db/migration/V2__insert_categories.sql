@@ -7,5 +7,5 @@ INSERT INTO category (name) VALUES ('🎥 Кино'); /*6*/
 INSERT INTO category (name) VALUES ('🦋 Флора и фауна'); /*7*/
 INSERT INTO category (name) VALUES ('🌎 География'); /*8*/
 INSERT INTO category (name) VALUES ('🏀 Спорт'); /*9*/
-INSERT INTO category (name) VALUES ('👠 Мода'); /*9*/
-INSERT INTO category (name) VALUES ('🧸 Детские'); /*9*/
+INSERT INTO category (name) VALUES ('👠 Мода'); /*10*/
+INSERT INTO category (name) VALUES ('🧸 Детские'); /*11*/

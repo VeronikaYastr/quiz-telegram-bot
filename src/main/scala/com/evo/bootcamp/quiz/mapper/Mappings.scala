@@ -7,7 +7,7 @@ import com.evo.bootcamp.quiz.dto.api.CallbackQuery.User
 import scala.language.implicitConversions
 
 object Mappings {
-  implicit def toAnswerDto(answer: Answer) = AnswerDto(answer.id, answer.text, answer.isRight, User(0L, ""))
+  implicit def toAnswerDto(answer: Answer) = AnswerDto(answer.id, answer.text, answer.isRight, User(0L, "", None))
 
   implicit def toQuestionCategoryDto(category: QuestionCategory): QuestionCategoryDto = QuestionCategoryDto(category.id, category.name)
 

@@ -8,6 +8,7 @@ import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, MessageId, QuestionsAmo
 import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
 import com.evo.bootcamp.quiz.dto.{AnswerDto, QuestionCategoryDto}
 import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
+import com.evo.bootcamp.quiz.utils.MessageTexts._
 
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
@@ -28,25 +29,25 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
 
   def sendAndCheck(chatId: ChatId, questionId: QuestionId, message: String, buttons: InlineButtons = List.empty): F[Unit] = for {
     questionMessage <- api.sendMessage(chatId, message, buttons)
-    _               <- F.delay{ Thread.sleep(6000) }
-    reminderMessage <- api.sendMessage(chatId, "_осталось 3 секунды_ ⌛")
-    _               <- F.delay{ Thread.sleep(3000) }
-    _               <- api.deleteMessage(chatId, reminderMessage.result.message_id)
+    _               <- F.delay{ Thread.sleep(10000) }
+    _               <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
+    _               <- F.delay{ Thread.sleep(5000) }
     rightAnswer     = getRightAnswerMessage(chatId, questionId)
     _               <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
     _               <- F.delay{ Thread.sleep(1000) }
   } yield ()
 
   def sendGameResult(chatId: Long): F[MessageResponse] = {
-    var resMessage = s"Игра закончена 🥳 "
+    var resMessage = `endGameMessage`
     logic.getGameResult(chatId).map(_.sortBy(_.rightAnswersAmount).reverse)
       .foreach(x => x.foreach(g => resMessage += s"\n *${g.username}*: *${g.rightAnswersAmount}* из *${g.totalAmount}*"))
+    logic.endGame(chatId)
     api.sendMessage(chatId, resMessage)
   }
 
   def getRightAnswerMessage(chatId: ChatId, questionId: QuestionId): String = {
     val rightAnswer = logic.getRightAnswer(chatId, questionId).map(_.text).getOrElse("")
-    s"_Правильный ответ_: $rightAnswer"
+    rightAnswerText(rightAnswer)
   }
 
   def run: F[Long] = {
@@ -69,33 +70,28 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
 
   def handleCommand(command: TelegramBotCommand): F[Unit] = {
     command match {
-      case c: ShowHelp => api.sendMessage(c.chatId, List(
-        "This bot can be used to play quiz game. Commands:",
-        s"`$help` - show this help message",
-        s"`$start`- starts the game",
-        s"`$stop` - stops the game"
-      ).mkString("\n")).map(_ => ())
+      case c: ShowHelp => api.sendMessage(c.chatId, `helpMessage`).map(_ => ())
       case c: StartGame =>
         val chatId = c.chatId
-        api.sendMessage(chatId, "\uD83E\uDDE9 Выберите количество вопросов", List(
+        api.sendMessage(chatId, `questionsAmountMessage`, List(
           List(InlineKeyboardButton("5", s"5 $chatId"), InlineKeyboardButton("10", s"10 $chatId")),
           List(InlineKeyboardButton("15", s"15 $chatId"), InlineKeyboardButton("20", s"20 $chatId"))
         )).map(_ => ())
       case c: QuestionsAmount =>
         val chatId = c.chatId
         logic.setQuestionsAmount(c.chatId, c.amount)
-        api.deleteMessage(chatId, c.messageId) *> logic.getAllCategories
+        api.editMessage(chatId, c.messageId, `questionsAmountMessage`) *> logic.getAllCategories
           .map(x => x.map(res => List(convertCategoryToButton(res, chatId))))
           .flatMap(x => api
             .sendMessage(chatId,
-              "\uD83D\uDC68\u200D\uD83C\uDF93 Выберите категорию вопросов",
-              List(convertCategoryToButton(QuestionCategoryDto(0, "❓Все"), chatId)) :: x)).map(_ => ())
+              `questionsCategoryMessage`,
+              List(convertCategoryToButton(QuestionCategoryDto(), chatId)) :: x)).map(_ => ())
       case c: QuestionsCategory =>
         val chatId = c.chatId
         logic.setQuestionsCategory(chatId, c.categoryId)
         for {
-          _ <- api.deleteMessage(chatId, c.messageId)
-          _ <- api.sendMessage(chatId, "Ваша игра началась. \nУ вас есть *10 секунд* на ответ ⏳")
+          _ <- api.editMessage(chatId, c.messageId, `questionsCategoryMessage`)
+          _ <- api.sendMessage(chatId, `startGameMessage`)
           _ <- logic.initGame(chatId)
           _ <- F.start(askQuestion(chatId))
         } yield ()

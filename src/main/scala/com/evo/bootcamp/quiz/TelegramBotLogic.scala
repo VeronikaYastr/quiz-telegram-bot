@@ -66,12 +66,17 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
 
   def getGameResult(chatId: ChatId): Option[List[GameResultDto]] = {
     activeQuestions.get(chatId).map(questions => {
-      val userAnswersMap = questions.flatMap(_.userAnswers).groupBy(_.user.username)
-      userAnswersMap.keys.flatMap(username => {
-        val answers = userAnswersMap.getOrElse(username, List.empty)
-        answers.map(_ => GameResultDto(username, answers.count(_.isRight), questions.size))
+      val userAnswersMap = questions.flatMap(_.userAnswers).groupBy(_.user.id)
+      userAnswersMap.keys.flatMap(id => {
+        val answers = userAnswersMap.getOrElse(id, List.empty)
+        answers.map(x => GameResultDto(x.user.username.getOrElse(x.user.first_name), answers.count(_.isRight), questions.size))
       }).toList
     })
+  }
+
+  def endGame(chatId: ChatId): Unit = {
+    activeQuestions -= chatId
+    gameSettings -= chatId
   }
 
   def setUserAnswer(chatId: ChatId, questionId: QuestionId, answer: AnswerDto): Unit = {
