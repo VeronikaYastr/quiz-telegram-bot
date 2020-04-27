@@ -2,6 +2,7 @@ package com.evo.bootcamp.quiz
 
 import cats.effect.{ContextShift, Effect}
 import cats.implicits._
+import com.evo.bootcamp.quiz.TelegramBotApi.InlineButtons
 import org.http4s.client.Client
 import org.http4s.implicits._
 import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
@@ -26,8 +27,8 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
   implicit val messageUpdatesDecoder: EntityDecoder[F, MessageResponse] = jsonOf[F, MessageResponse]
   implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
 
-  implicit val markupEncoder: QueryParamEncoder[List[List[InlineKeyboardButton]]] =
-    (list: List[List[InlineKeyboardButton]]) => {
+  implicit val markupEncoder: QueryParamEncoder[InlineButtons] =
+    (list: InlineButtons) => {
       QueryParameterValue(s"""{"inline_keyboard": ${list.asJson}}""")
     }
 
@@ -40,7 +41,7 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     client.expect[BotResponse[List[BotUpdateMessage]]](uri)
   }
 
-  def editMessage(chatId: Long, messageId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[Unit] = {
+  def editMessage(chatId: Long, messageId: Long, message: String, buttons: InlineButtons = List.empty): F[Unit] = {
     val uri = (botApiUri / "editMessageText" =? Map(
       "chat_id" -> List(chatId.toString),
       "message_id" -> List(messageId.toString),
@@ -58,7 +59,7 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
     client.expect[Unit](uri)
   }
 
-  def sendMessage(chatId: Long, message: String, buttons: List[List[InlineKeyboardButton]] = List.empty): F[MessageResponse] = {
+  def sendMessage(chatId: Long, message: String, buttons: InlineButtons = List.empty): F[MessageResponse] = {
     val uri = (botApiUri / "sendMessage" =? Map(
       "chat_id" -> List(chatId.toString),
       "parse_mode" -> List("Markdown"),
@@ -67,4 +68,8 @@ class TelegramBotApi[F[_]](token: String, client: Client[F], logic: TelegramBotL
 
     client.expect[MessageResponse](uri)
   }
+}
+
+object TelegramBotApi {
+  type InlineButtons = List[List[InlineKeyboardButton]]
 }
