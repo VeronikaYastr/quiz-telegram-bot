@@ -6,7 +6,8 @@ import com.evo.bootcamp.quiz.TelegramBotCommand.ChatId
 import com.evo.bootcamp.quiz.dao.QuestionsDao._
 import com.evo.bootcamp.quiz.dao.QuestionsDao
 import com.evo.bootcamp.quiz.dao.models.QuestionWithAnswer
-import com.evo.bootcamp.quiz.dto.{AnswerDto, GameResultDto, GameSettingsDto, QuestionCategoryDto, QuestionDto, QuestionInfoDto}
+import com.evo.bootcamp.quiz.dto.QuestionInfoDto.QuestionDto
+import com.evo.bootcamp.quiz.dto.{AnswerDto, GameResultDto, GameSettingsDto, QuestionCategoryDto, QuestionInfoDto}
 import com.evo.bootcamp.quiz.mapper.Mappings._
 
 class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F]) {

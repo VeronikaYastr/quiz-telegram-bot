@@ -1,19 +1,33 @@
 package com.evo.bootcamp.quiz
 
-import cats.effect.Effect
+import cats.effect.{Effect, IO, LiftIO}
 import com.evo.bootcamp.quiz.dao.QuestionsDao
 import com.evo.bootcamp.quiz.dao.models.QuestionCategory
+import com.evo.bootcamp.quiz.dto.QuestionCategoryDto
 import org.mockito.MockitoSugar
-import org.scalatest.BeforeAndAfter
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest._
+import org.scalatest.flatspec.{AnyFlatSpec, AsyncFlatSpec}
+import org.scalatest.matchers.should.Matchers
+import cats.effect.testing.specs2.CatsIO
+import org.specs2.mutable.Specification
 
-class LogicTest[F[_]](implicit F: Effect[F]) extends AnyFunSuite with BeforeAndAfter with MockitoSugar {
-  test ("test logic") {
-    val dao = mock[QuestionsDao[F]]
-    val logicService = new TelegramBotLogic[F](dao)
-    when(dao.getAllCategories).thenReturn(F.pure(List(QuestionCategory(1, "History"))))
+import scala.concurrent.Future
 
-    val allCategories = logicService.getAllCategories
-    verify(dao.getAllCategories)
+class LogicTest extends Specification with CatsIO with MockitoSugar {
+
+
+  "Logic" >> {
+    "extract all categories" >> {
+      val questionDaoMock = mock[QuestionsDao[IO]]
+      when(questionDaoMock.getAllCategories).thenReturn(
+        IO { List(QuestionCategory(1, "History"), QuestionCategory(2, "Science")) }
+      )
+
+      val logicService = new TelegramBotLogic[IO](questionDaoMock)
+      val res = logicService.getAllCategories
+      res.map(
+        _ must contain(QuestionCategoryDto(1, "History"), QuestionCategoryDto(2, "Science"))
+      )
+    }
   }
 }

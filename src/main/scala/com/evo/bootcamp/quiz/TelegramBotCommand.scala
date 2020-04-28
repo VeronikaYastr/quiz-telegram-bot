@@ -27,13 +27,9 @@ object TelegramBotCommand {
 
   case class QuestionsCategory(chatId: ChatId, categoryId: CategoryId, messageId: MessageId) extends TelegramBotCommand
 
-  implicit class RegexOps(sc: StringContext) {
-    def r = new util.matching.Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
-  }
-
   def fromRawMessage(msg: BotUpdateMessage): Option[TelegramBotCommand] = {
     def textCommand: Option[TelegramBotCommand] = msg.message flatMap {
-      case Message(_, chat, Some(`help`) | Some(s"${`help`}${`botName`}")) =>
+      case Message(_, chat, Some(`help`)) =>
         Some(ShowHelp(chat.id))
       case Message(_, chat, Some(`startWithName`) | Some(`start`)) =>
         Some(StartGame(chat.id))

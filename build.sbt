@@ -15,6 +15,7 @@ val circeVersion = "0.13.0"
 val playVersion = "2.8.1"
 val akkaVersion = "2.6.4"
 val doobieVersion = "0.8.8"
+val specs2Version = "4.8.3"
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.1.0",
@@ -34,8 +35,10 @@ libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
   "org.tpolecat" %% "doobie-hikari" % "0.8.8",
   "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+  "com.codecommit" %% "cats-effect-testing-specs2" % "0.4.0",
   "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test,
   "org.mockito" %% "mockito-scala" % "1.11.2" % Test,
+  "org.specs2" %% "specs2-core" % specs2Version % Test,
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
