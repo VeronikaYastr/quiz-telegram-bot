@@ -15,24 +15,22 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
   var activeQuestions: Map[ChatId, List[QuestionInfoDto]] = Map[ChatId, List[QuestionInfoDto]]()
   var gameSettings: Map[ChatId, GameSettingsDto] = Map[ChatId, GameSettingsDto]()
 
+  def getGameSettings(chatId: ChatId): GameSettingsDto = {
+    gameSettings.getOrElse(chatId, GameSettingsDto(chatId))
+  }
+
   def setQuestionsAmount(chatId: ChatId, amount: Int): Unit = {
-    val gameSettingsDto = gameSettings.getOrElse(chatId, GameSettingsDto(chatId))
-    gameSettingsDto.questionsAmount = amount
-    gameSettings += (chatId -> gameSettingsDto)
+    val newSettingsDto = getGameSettings(chatId).copy(questionsAmount = amount)
+    gameSettings += (chatId -> newSettingsDto)
   }
 
   def setQuestionsCategory(chatId: ChatId, category: CategoryId): Unit = {
-    val gameSettingsDto = gameSettings.getOrElse(chatId, GameSettingsDto(chatId))
-    gameSettingsDto.questionsCategory = category
-    gameSettings += (chatId -> gameSettingsDto)
+    val newSettingsDto = getGameSettings(chatId).copy(questionsCategory = category)
+    gameSettings += (chatId -> newSettingsDto)
   }
 
   def getAllCategories: F[List[QuestionCategoryDto]] = {
-    val questionCategory: F[List[QuestionCategoryDto]] = for {
-      x <- questionsDao.getAllCategories.map(toQuestionCategoryDtoList)
-    } yield x
-
-    questionCategory
+    questionsDao.getAllCategories.map(toQuestionCategoryDtoList)
   }
 
   def initGame(chatId: ChatId): F[Unit] =

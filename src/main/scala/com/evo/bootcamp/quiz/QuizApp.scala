@@ -25,7 +25,7 @@ object QuizApp extends IOApp {
             _ <- DaoInit.initialize(db)
             dao = new QuestionsDao[IO](db)
             logic = new TelegramBotLogic[IO](dao)
-            api = new TelegramBotApi[IO](token, client, logic)
+            api = new TelegramBotApi[IO](token, client)
             _ <- new TelegramBotProcess[IO](api, logic).run
           } yield ExitCode.Success
         }
