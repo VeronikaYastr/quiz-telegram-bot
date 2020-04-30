@@ -1,8 +1,9 @@
 package com.evo.bootcamp.quiz
 
 import scala.concurrent.ExecutionContext.global
+import scala.concurrent.duration._
 import cats.implicits._
-import cats.effect.ConcurrentEffect
+import cats.effect.{ConcurrentEffect, Timer}
 import com.evo.bootcamp.quiz.TelegramBotApi.InlineButtons
 import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, MessageId, QuestionsAmount, QuestionsCategory, ShowHelp, StartGame, UserQuestionAnswer, help, start, stop}
 import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
@@ -10,7 +11,7 @@ import com.evo.bootcamp.quiz.dto.{AnswerDto, QuestionCategoryDto}
 import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 import com.evo.bootcamp.quiz.utils.MessageTexts._
 
-class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
+class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F], timer: Timer[F]) {
 
   def convertAnswerToButton: (AnswerDto, QuestionId, ChatId) => InlineKeyboardButton = (ans, qId, chatId) =>
     InlineKeyboardButton(s"$ans", s"${ans.id} ${ans.isRight} $qId $chatId")
@@ -29,12 +30,12 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
 
   def sendAndCheck(chatId: ChatId, questionId: QuestionId, message: String, buttons: InlineButtons = List.empty): F[Unit] = for {
     questionMessage <- api.sendMessage(chatId, message, buttons)
-    _               <- F.delay{ Thread.sleep(10000) }
+    _               <- timer.sleep(5.seconds)
     _               <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
-    _               <- F.delay{ Thread.sleep(5000) }
+    _               <- timer.sleep(3.seconds)
     rightAnswer     = getRightAnswerMessage(chatId, questionId)
     _               <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
-    _               <- F.delay{ Thread.sleep(1000) }
+    _               <- timer.sleep(1.seconds)
   } yield ()
 
   def sendGameResult(chatId: Long): F[MessageResponse] = {
