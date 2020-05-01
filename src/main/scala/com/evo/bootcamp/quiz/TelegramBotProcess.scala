@@ -8,7 +8,6 @@ import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
 import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 import com.evo.bootcamp.quiz.dto.{AnswerDto, QuestionCategoryDto}
 import com.evo.bootcamp.quiz.utils.MessageTexts._
-//import scala.concurrent.ExecutionContext.global
 
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
 
@@ -21,28 +20,36 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
   def askQuestion(chatId: Long): F[MessageResponse] = {
     logic.getQuestionsInfo(chatId).flatMap(x =>
       x.map(info => sendAndCheck(chatId, info.question.id, s"*${info.question}*", info.question.answers.grouped(2)
-      .map(ansGroup => ansGroup.map(convertAnswerToButton(_, info.question.id, chatId))).toList))
-      .sequence
-      .flatMap(_ => sendGameResult(chatId)))
+        .map(ansGroup => ansGroup.map(convertAnswerToButton(_, info.question.id, chatId))).toList))
+        .sequence
+        .flatMap(_ => sendGameResult(chatId)))
   }
 
   def sendAndCheck(chatId: ChatId, questionId: QuestionId, message: String, buttons: InlineButtons = List.empty): F[Unit] = for {
-   questionMessage <- api.sendMessage(chatId, message, buttons)
-   _               <- F.delay{ Thread.sleep(10000) }
-   _               <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
-   _               <- F.delay{ Thread.sleep(5000) }
-   rightAnswer     <- getRightAnswerMessage(chatId, questionId)
-   _               <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
-   _               <- F.delay{ Thread.sleep(1000) }
+    questionMessage <- api.sendMessage(chatId, message, buttons)
+    _ <- F.delay {
+      Thread.sleep(10000)
+    }
+    _ <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
+    _ <- F.delay {
+      Thread.sleep(5000)
+    }
+    rightAnswer <- getRightAnswerMessage(chatId, questionId)
+    _ <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
+    _ <- F.delay {
+      Thread.sleep(1000)
+    }
   } yield ()
 
   def sendGameResult(chatId: Long): F[MessageResponse] = {
     var resMessage = `endGameMessage`
-    logic.getGameResult(chatId).map(x => x.map(_.sortBy(_.rightAnswersAmount).reverse)
-      .foreach(x =>
-        x.foreach(g => resMessage += s"\n *${g.username}*: *${g.rightAnswersAmount}* из *${g.totalAmount}*"))) *>
-      logic.endGame(chatId) *>
-      api.sendMessage(chatId, resMessage)
+    for {
+      gameResult <- logic.getGameResult(chatId)
+      _ = gameResult.map(_.sortBy(_.rightAnswersAmount).reverse)
+        .map(_.foreach(g => resMessage += s"\n *${g.username}*: *${g.rightAnswersAmount}* из *${g.totalAmount}*"))
+      _ <- logic.endGame(chatId)
+      res <- api.sendMessage(chatId, resMessage)
+    } yield res
   }
 
   def getRightAnswerMessage(chatId: ChatId, questionId: QuestionId): F[String] = {
@@ -57,6 +64,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         .flatMap(response => processMessage(response).map(_.getOrElse(0L)))
         .flatMap(loop)
     }
+
     loop(0)
   }
 
@@ -90,13 +98,6 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
                 `questionsCategoryMessage`,
                 List(convertCategoryToButton(QuestionCategoryDto(), chatId)) :: x)).map(_ => ())
         } yield ()
-        /*logic.setQuestionsAmount(c.chatId, c.amount) *>
-        api.editMessage(chatId, c.messageId, `questionsAmountMessage`) *> logic.getAllCategories
-          .map(x => x.map(res => List(convertCategoryToButton(res, chatId))))
-          .flatMap(x => api
-            .sendMessage(chatId,
-              `questionsCategoryMessage`,
-              List(convertCategoryToButton(QuestionCategoryDto(), chatId)) :: x)).map(_ => ())*/
       case c: QuestionsCategory =>
         val chatId = c.chatId
         for {
