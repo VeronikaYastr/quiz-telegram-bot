@@ -33,7 +33,7 @@ object TelegramBotCommand {
         Some(ShowHelp(chat.id))
       case Message(_, chat, Some(`startWithName`) | Some(`start`)) =>
         Some(StartGame(chat.id))
-      case Message(_, chat, Some(`stop`) | Some(s"${`stop`}${`botName`}")) =>
+      case Message(_, chat, Some(`stopWithName`) | Some(`stop`)) =>
         Some(StopGame(chat.id))
       case _ => None
     }
@@ -56,8 +56,9 @@ object TelegramBotCommand {
 
   val help = "?"
   val start = "/start"
-  val botName = "@quizzy_funny_bot"
-  val startWithName = s"${`start`}${`botName`}"
   val stop = "/stop"
+  val botName = "@quizzy_funny_bot"
+  val startWithName = s"$start$botName"
+  val stopWithName = s"$stop$botName"
   val like = "like"
 }
