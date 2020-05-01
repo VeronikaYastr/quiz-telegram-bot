@@ -1,32 +1,45 @@
 package com.evo.bootcamp.quiz
 
 import cats.effect.Effect
+import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.evo.bootcamp.quiz.TelegramBotCommand.ChatId
-import com.evo.bootcamp.quiz.dao.QuestionsDao._
 import com.evo.bootcamp.quiz.dao.QuestionsDao
+import com.evo.bootcamp.quiz.dao.QuestionsDao._
 import com.evo.bootcamp.quiz.dao.models.QuestionWithAnswer
+import com.evo.bootcamp.quiz.dto.GameDto.GameSettingsDto
 import com.evo.bootcamp.quiz.dto.QuestionInfoDto.QuestionDto
-import com.evo.bootcamp.quiz.dto.{AnswerDto, GameResultDto, GameSettingsDto, QuestionCategoryDto, QuestionInfoDto}
+import com.evo.bootcamp.quiz.dto._
 import com.evo.bootcamp.quiz.mapper.Mappings._
 
-class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F]) {
+class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F], ref: Ref[F, Map[ChatId, GameDto]])(implicit F: Effect[F]) {
 
-  var activeQuestions: Map[ChatId, List[QuestionInfoDto]] = Map[ChatId, List[QuestionInfoDto]]()
-  var gameSettings: Map[ChatId, GameSettingsDto] = Map[ChatId, GameSettingsDto]()
-
-  def getGameSettings(chatId: ChatId): GameSettingsDto = {
-    gameSettings.getOrElse(chatId, GameSettingsDto(chatId))
+  def getGameSettings(chatId: ChatId): F[GameSettingsDto] = {
+    ref.get.map(_.get(chatId).map(_.gameSettingsDto).getOrElse(GameSettingsDto(chatId)))
   }
 
-  def setQuestionsAmount(chatId: ChatId, amount: Int): Unit = {
-    val newSettingsDto = getGameSettings(chatId).copy(questionsAmount = amount)
-    gameSettings += (chatId -> newSettingsDto)
+  def updateGameSettings(chatId: ChatId, newGameSettingsDto: GameSettingsDto): F[Unit] = {
+    ref.update {
+      allGames =>
+        val game = allGames.getOrElse(chatId, GameDto(GameSettingsDto(chatId))).copy(gameSettingsDto = newGameSettingsDto)
+        allGames + (chatId -> game)
+    }
   }
 
-  def setQuestionsCategory(chatId: ChatId, category: CategoryId): Unit = {
-    val newSettingsDto = getGameSettings(chatId).copy(questionsCategory = category)
-    gameSettings += (chatId -> newSettingsDto)
+  def setQuestionsAmount(chatId: ChatId, amount: Int): F[Unit] = {
+    for {
+      gameSettings <- getGameSettings(chatId)
+      newGameSettings = gameSettings.copy(questionsAmount = amount)
+      _ <- updateGameSettings(chatId, newGameSettings)
+    } yield ()
+  }
+
+  def setQuestionsCategory(chatId: ChatId, category: CategoryId): F[Unit] = {
+    for {
+      gameSettings <- getGameSettings(chatId)
+      newGameSettings = gameSettings.copy(questionsCategory = category)
+      _ <- updateGameSettings(chatId, newGameSettings)
+    } yield ()
   }
 
   def getAllCategories: F[List[QuestionCategoryDto]] = {
@@ -35,9 +48,13 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
 
   def initGame(chatId: ChatId): F[Unit] =
     for {
-      gameSettings <- F.pure(gameSettings.getOrElse(chatId, GameSettingsDto(chatId)))
+      gameSettings <- getGameSettings(chatId)
       questions <- questionsDao.generateRandomQuestions(gameSettings.questionsAmount, gameSettings.questionsCategory)
-      _ = activeQuestions += (chatId -> convertQuestions(questions))
+      _ <- ref.update {
+        allGames =>
+          val game = GameDto(gameSettings, convertQuestions(questions))
+          allGames + (chatId -> game)
+      }
     } yield ()
 
   private def convertQuestions(questions: List[QuestionWithAnswer]): List[QuestionInfoDto] = {
@@ -51,39 +68,41 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F])(implicit F: Effect[F
     }.toList
   }
 
-  def getQuestionsInfo(chatId: ChatId): List[QuestionInfoDto] = {
-    activeQuestions.getOrElse(chatId, List.empty)
+  def getQuestionsInfo(chatId: ChatId): F[List[QuestionInfoDto]] = {
+    ref.get.map(_.get(chatId).map(_.questions).orEmpty)
   }
 
-  def getQuestionInfoById(chatId: ChatId, questionId: QuestionId): Option[QuestionInfoDto] = {
-    getQuestionsInfo(chatId).find(_.question.id == questionId)
+  def getQuestionInfoById(chatId: ChatId, questionId: QuestionId): F[Option[QuestionInfoDto]] = {
+    getQuestionsInfo(chatId).map(_.find(_.question.id == questionId))
   }
 
-  def getRightAnswer(chatId: ChatId, questionId: QuestionId): Option[AnswerDto] = {
-    getQuestionInfoById(chatId, questionId).flatMap(x => x.question.answers.find(_.isRight))
+  def getRightAnswer(chatId: ChatId, questionId: QuestionId): F[Option[AnswerDto]] = {
+    getQuestionInfoById(chatId, questionId).map(_.flatMap(_.question.answers.find(_.isRight)))
   }
 
-  def getGameResult(chatId: ChatId): Option[List[GameResultDto]] = {
-    activeQuestions.get(chatId).map(questions => {
-      val userAnswersMap = questions.flatMap(_.userAnswers).groupBy(_.user.id)
+  def getGameResult(chatId: ChatId): F[Option[List[GameResultDto]]] = {
+    ref.get.map(_.get(chatId).map(game => {
+      val userAnswersMap = game.questions.flatMap(_.userAnswers).groupBy(_.user.id)
       userAnswersMap.keys.flatMap(id => {
-        val answers = userAnswersMap.getOrElse(id, List.empty)
-        answers.map(x => GameResultDto(x.user.username.getOrElse(x.user.first_name), answers.count(_.isRight), questions.size))
+        val answers = userAnswersMap.get(id).orEmpty
+        answers.map(x => GameResultDto(x.user.username.getOrElse(x.user.first_name), answers.count(_.isRight), game.questions.size))
       }).toList
-    })
+    }))
   }
 
-  def endGame(chatId: ChatId): Unit = {
-    activeQuestions -= chatId
-    gameSettings -= chatId
+  def endGame(chatId: ChatId): F[Unit] = {
+    ref.update(_ - chatId)
   }
 
-  def setUserAnswer(chatId: ChatId, questionId: QuestionId, answer: AnswerDto): Unit = {
-    getQuestionInfoById(chatId, questionId).foreach(x => {
-      x.userAnswers.find(_.user.id == answer.user.id).foreach(ans => {
-        x.userAnswers = x.userAnswers.filterNot(_ == ans)
+  def setUserAnswer(chatId: ChatId, questionId: QuestionId, answer: AnswerDto): F[Unit] = {
+    for {
+      qInfo <- getQuestionInfoById(chatId, questionId)
+      _ = qInfo.foreach(x => {
+        x.userAnswers.find(_.user.id == answer.user.id).foreach(ans => {
+          x.userAnswers = x.userAnswers.filterNot(_ == ans)
+        })
+        x.userAnswers ::= answer
       })
-      x.userAnswers ::= answer
-    })
+    } yield ()
   }
 }
