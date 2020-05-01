@@ -1,15 +1,19 @@
 package com.evo.bootcamp.quiz
 
-import cats.effect.ConcurrentEffect
+import scala.concurrent.ExecutionContext.global
 import cats.implicits._
+import cats.effect.ConcurrentEffect
 import com.evo.bootcamp.quiz.TelegramBotApi.InlineButtons
-import com.evo.bootcamp.quiz.TelegramBotCommand._
+import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, MessageId, QuestionsAmount, QuestionsCategory, ShowHelp, StartGame, UserQuestionAnswer, help, start, stop}
 import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
-import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 import com.evo.bootcamp.quiz.dto.{AnswerDto, QuestionCategoryDto}
+import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 import com.evo.bootcamp.quiz.utils.MessageTexts._
 
-class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F]) {
+class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F], timer: Timer[F]) {
+
+  var fiberValues: Map[ChatId, Fiber[F, MessageResponse]] = Map[ChatId, Fiber[F, MessageResponse]]()
+
 
   def convertAnswerToButton: (AnswerDto, QuestionId, ChatId) => InlineKeyboardButton = (ans, qId, chatId) =>
     InlineKeyboardButton(s"$ans", s"${ans.id} ${ans.isRight} $qId $chatId")
@@ -27,18 +31,12 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
 
   def sendAndCheck(chatId: ChatId, questionId: QuestionId, message: String, buttons: InlineButtons = List.empty): F[Unit] = for {
     questionMessage <- api.sendMessage(chatId, message, buttons)
-    _ <- F.delay {
-      Thread.sleep(10000)
-    }
-    _ <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
-    _ <- F.delay {
-      Thread.sleep(5000)
-    }
-    rightAnswer <- getRightAnswerMessage(chatId, questionId)
-    _ <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
-    _ <- F.delay {
-      Thread.sleep(1000)
-    }
+    _               <- timer.sleep(10.seconds)
+    _               <- api.editMessage(chatId, questionMessage.result.message_id, s"⏱ $message", buttons)
+    _               <- timer.sleep(5.seconds)
+    rightAnswer     = getRightAnswerMessage(chatId, questionId)
+    _               <- api.editMessage(chatId, questionMessage.result.message_id, s"$message \n\n $rightAnswer")
+    _               <- timer.sleep(1.seconds)
   } yield ()
 
   def sendGameResult(chatId: Long): F[MessageResponse] = {
@@ -100,14 +98,20 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         } yield ()
       case c: QuestionsCategory =>
         val chatId = c.chatId
+        logic.setQuestionsCategory(chatId, c.categoryId)
         for {
           _ <- logic.setQuestionsCategory(chatId, c.categoryId)
           _ <- api.editMessage(chatId, c.messageId, `questionsCategoryMessage`)
           _ <- api.sendMessage(chatId, `startGameMessage`)
           _ <- logic.initGame(chatId)
-          _ <- F.start(askQuestion(chatId))
+          fiber <- F.start(askQuestion(chatId))
+          _ = fiberValues += (chatId -> fiber)
         } yield ()
       case c: UserQuestionAnswer => logic.setUserAnswer(c.chatId, c.questionId, c.answer)
+      case c: StopGame => fiberValues.get(c.chatId) match {
+        case Some(value) => value.cancel
+        case None => F.pure(0)
+      }
     }
   }
 }
