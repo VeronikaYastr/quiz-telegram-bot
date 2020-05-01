@@ -3,15 +3,18 @@ package com.evo.bootcamp.quiz
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import cats.implicits._
-import cats.effect.{ConcurrentEffect, Timer}
+import cats.effect.{ConcurrentEffect, Fiber, Timer}
 import com.evo.bootcamp.quiz.TelegramBotApi.InlineButtons
-import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, MessageId, QuestionsAmount, QuestionsCategory, ShowHelp, StartGame, UserQuestionAnswer, help, start, stop}
+import com.evo.bootcamp.quiz.TelegramBotCommand.{ChatId, MessageId, QuestionsAmount, QuestionsCategory, ShowHelp, StartGame, StopGame, UserQuestionAnswer, help, start, stop}
 import com.evo.bootcamp.quiz.dao.QuestionsDao.QuestionId
 import com.evo.bootcamp.quiz.dto.{AnswerDto, QuestionCategoryDto}
 import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
 import com.evo.bootcamp.quiz.utils.MessageTexts._
 
 class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F])(implicit F: ConcurrentEffect[F], timer: Timer[F]) {
+
+  var fiberValues: Map[ChatId, Fiber[F, MessageResponse]] = Map[ChatId, Fiber[F, MessageResponse]]()
+
 
   def convertAnswerToButton: (AnswerDto, QuestionId, ChatId) => InlineKeyboardButton = (ans, qId, chatId) =>
     InlineKeyboardButton(s"$ans", s"${ans.id} ${ans.isRight} $qId $chatId")
@@ -94,9 +97,14 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
           _ <- api.editMessage(chatId, c.messageId, `questionsCategoryMessage`)
           _ <- api.sendMessage(chatId, `startGameMessage`)
           _ <- logic.initGame(chatId)
-          _ <- F.start(askQuestion(chatId))
+          fiber <- F.start(askQuestion(chatId))
+          _ = fiberValues += (chatId -> fiber)
         } yield ()
       case c: UserQuestionAnswer => F.pure(logic.setUserAnswer(c.chatId, c.questionId, c.answer))
+      case c: StopGame => fiberValues.get(c.chatId) match {
+        case Some(value) => value.cancel
+        case None => F.pure(0)
+      }
       case _ => F.pure(1)
     }
   }
