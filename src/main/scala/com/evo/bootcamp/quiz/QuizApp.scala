@@ -11,6 +11,7 @@ import cats.syntax.apply._
 import cats.implicits._
 import com.evo.bootcamp.quiz.TelegramBotCommand.ChatId
 import com.evo.bootcamp.quiz.dto.GameDto
+import com.evo.bootcamp.quiz.dto.api.MessageResponse
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
@@ -27,10 +28,11 @@ object QuizApp extends IOApp {
           for {
             _ <- DaoInit.initialize(db)
             dao = new QuestionsDao[IO](db)
-            ref <- Ref[IO].of(Map.empty[ChatId, GameDto])
-            logic = new TelegramBotLogic[IO](dao, ref)
+            gameRef <- Ref[IO].of(Map.empty[ChatId, GameDto])
+            fiberRef <- Ref[IO].of(Map.empty[ChatId, Fiber[IO, MessageResponse]])
+            logic = new TelegramBotLogic[IO](dao, gameRef)
             api = new TelegramBotApi[IO](token, client)
-            _ <- new TelegramBotProcess[IO](api, logic).run
+            _ <- new TelegramBotProcess[IO](api, logic, fiberRef).run
           } yield ExitCode.Success
         }
       }
