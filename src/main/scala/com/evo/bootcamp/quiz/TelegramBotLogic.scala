@@ -85,7 +85,8 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F], ref: Ref[F, Map[Chat
       val userAnswersMap = game.questions.flatMap(_.userAnswers).groupBy(_.user.id)
       userAnswersMap.keys.flatMap(id => {
         val answers = userAnswersMap.get(id).orEmpty
-        answers.map(x => GameResultDto(x.user.username.getOrElse(x.user.first_name), answers.count(_.isRight), game.questions.size))
+        answers
+          .map(x => GameResultDto(x.user.username.getOrElse(x.user.first_name), answers.count(_.isRight), game.questions.size))
       }).toList
     }))
   }
@@ -96,13 +97,26 @@ class TelegramBotLogic[F[_]](questionsDao: QuestionsDao[F], ref: Ref[F, Map[Chat
 
   def setUserAnswer(chatId: ChatId, questionId: QuestionId, answer: AnswerDto): F[Unit] = {
     for {
-      qInfo <- getQuestionInfoById(chatId, questionId)
-      _ = qInfo.foreach(x => {
-        x.userAnswers.find(_.user.id == answer.user.id).foreach(ans => {
-          x.userAnswers = x.userAnswers.filterNot(_ == ans)
-        })
-        x.userAnswers ::= answer
-      })
+      _ <- ref.update {
+        allGames => {
+          val questions = allGames.get(chatId).map(_.questions).orEmpty
+          val currentQuestion = questions.find(_.question.id == questionId)
+          val questionWithPreviousAnswers = currentQuestion.flatMap {
+            q => q.userAnswers.find(_.user.id == answer.user.id)
+              .map(a => q.copy(userAnswers = q.userAnswers.filterNot(_ == a)))
+          }
+
+          val newQuestion = questionWithPreviousAnswers match {
+            case None => currentQuestion.map(q => q.copy(userAnswers = answer :: q.userAnswers))
+            case Some(_) => questionWithPreviousAnswers.map(q => q.copy(userAnswers = answer :: q.userAnswers))
+          }
+
+          val newGame = allGames.get(chatId).map(x => x.copy(questions = {
+            newQuestion.map(q => q :: x.questions.filterNot(_.question.id == questionId)).orEmpty
+          })).getOrElse(GameDto(GameSettingsDto(chatId)))
+          allGames + (chatId -> newGame)
+        }
+      }
     } yield ()
   }
 }
