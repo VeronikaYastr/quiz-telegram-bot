@@ -67,7 +67,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
     loop(0)
   }
 
-  private def processMessage(response: BotResponse[List[BotUpdateMessage]]): F[Option[Long]] =
+  def processMessage(response: BotResponse[List[BotUpdateMessage]]): F[Option[Long]] =
     response.result match {
       case Nil =>
         F.pure(None)
@@ -92,7 +92,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
           _ <- api.editMessage(chatId, c.messageId, `questionsAmountMessage`)
           _ <- logic.getAllCategories
             .map(x => x.map(res => List(convertCategoryToButton(res, chatId))))
-            .flatMap(x => api
+              .flatMap(x => api
               .sendMessage(chatId,
                 `questionsCategoryMessage`,
                 List(convertCategoryToButton(QuestionCategoryDto(), chatId)) :: x)).map(_ => ())

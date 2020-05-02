@@ -6,6 +6,7 @@ import com.evo.bootcamp.quiz.config.DbConfig
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.configuration.Configuration
 
 object DaoInit {
 

@@ -39,6 +39,8 @@ libraryDependencies ++= Seq(
   "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test,
   "org.mockito" %% "mockito-scala" % "1.11.2" % Test,
   "org.specs2" %% "specs2-core" % specs2Version % Test,
+  "com.h2database" % "h2" % "1.4.197" % Test,
+  "org.scalatest" %% "scalatest" % "3.1.0" % Test
 )
 
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
