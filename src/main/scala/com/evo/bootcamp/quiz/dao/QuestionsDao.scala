@@ -12,13 +12,13 @@ import doobie.postgres._
 class QuestionsDao[F[_]](xa: Transactor[F])(implicit F: Effect[F]) {
 
   def generateRandomQuestions(amount: Int, category: CategoryId): F[List[QuestionWithAnswer]] = {
-    val categoryFragment = fr"where category = $category"
-    var questionsQuery = fr"select * from questions"
-    val amountQuery = fr"order by random() limit $amount"
-    if (category != 0) questionsQuery ++= categoryFragment
-    questionsQuery ++= amountQuery
+    val categoryFragment = List(s"where category = $category")
+    val questionsQuery = List("select * from questions")
+    val amountQuery = List(s"order by random() limit $amount")
+    val queryWithCategory = if (category != 0) questionsQuery ::: categoryFragment else questionsQuery
+    val fullQuery = queryWithCategory ::: amountQuery
 
-    val questionsWithAnswersQuery = fr"select q.id, q.text, a.id, a.text, a.isRight from (" ++ questionsQuery ++ fr") q inner join answers a on q.id = a.questionid"
+    val questionsWithAnswersQuery = sql"select q.id, q.text, a.id, a.text, a.isRight from (" ++ Fragment.const(fullQuery.mkString(" ")) ++ sql") q inner join answers a on q.id = a.questionid"
     questionsWithAnswersQuery.queryWithLogHandler[(Int, String, Int, String, Boolean)](LogHandler.jdkLogHandler).map{case (qId, qt, aId, at, isR) => QuestionWithAnswer(qId, qt, Answer(aId, at, isR))}.to[List].transact(xa)
   }
 

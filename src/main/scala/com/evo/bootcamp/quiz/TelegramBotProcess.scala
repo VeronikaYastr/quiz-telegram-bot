@@ -41,13 +41,13 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
   } yield ()
 
   def sendGameResult(chatId: Long): F[MessageResponse] = {
-    var resMessage = `endGameMessage`
+    val startMessage = List(`endGameMessage`)
     for {
       gameResult <- logic.getGameResult(chatId)
-      _ = gameResult.map(_.sortBy(_.rightAnswersAmount).reverse)
-        .map(_.foreach(g => resMessage += s"\n *${g.username}*: *${g.rightAnswersAmount}* из *${g.totalAmount}*"))
+      finalMessage = gameResult.map(_.sortBy(_.rightAnswersAmount).reverse)
+        .map(l => l.flatMap(g => s"\n *${g.username}*: *${g.rightAnswersAmount}* из *${g.totalAmount}*" :: startMessage))
       _ <- logic.endGame(chatId)
-      res <- api.sendMessage(chatId, resMessage)
+      res <- api.sendMessage(chatId, finalMessage.map(_.reverse.mkString("\n")).getOrElse(""))
     } yield res
   }
 
