@@ -99,7 +99,6 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         } yield ()
       case c: QuestionsCategory =>
         val chatId = c.chatId
-        logic.setQuestionsCategory(chatId, c.categoryId)
         for {
           _ <- logic.setQuestionsCategory(chatId, c.categoryId)
           _ <- api.editMessage(chatId, c.messageId, `questionsCategoryMessage`)
@@ -113,7 +112,7 @@ class TelegramBotProcess[F[_]](api: TelegramBotApi[F], logic: TelegramBotLogic[F
         for {
           _ <- fiberRef.get.flatMap(x => x.get(c.chatId) match {
             case Some(value) => value.cancel
-            case None => F.pure()
+            case None => F.pure(())
           })
         } yield ()
     }

@@ -7,7 +7,9 @@ scalaVersion := "2.13.1"
 scalacOptions ++= Seq(
   "-deprecation",
   "-feature",
-  "-Ymacro-annotations"
+  "-Ymacro-annotations",
+  "-Xfatal-warnings",
+  "-unchecked",
 )
 
 val http4sVersion = "0.21.1"
@@ -37,7 +39,7 @@ libraryDependencies ++= Seq(
   "org.tpolecat" %% "doobie-postgres" % doobieVersion,
   "com.codecommit" %% "cats-effect-testing-specs2" % "0.4.0",
   "org.scalatestplus" %% "scalatestplus-scalacheck" % "3.1.0.0-RC2" % Test,
-  "org.mockito" %% "mockito-scala" % "1.11.2" % Test,
+  "org.mockito" %% "mockito-scala-scalatest" % "1.14.0" % Test,
   "org.specs2" %% "specs2-core" % specs2Version % Test,
   "com.h2database" % "h2" % "1.4.197" % Test,
   "org.scalatest" %% "scalatest" % "3.1.0" % Test
