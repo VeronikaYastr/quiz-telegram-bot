@@ -1,48 +1,69 @@
 package com.evo.bootcamp.quiz
 
-
-import cats.effect.{Effect, ExitCode, IO, Sync}
-import cats.implicits._
-import fs2.Stream
-import io.chrisdavenport.log4cats.Logger
-import org.http4s.client.Client
-import org.http4s.{EntityDecoder, Uri}
-import com.evo.bootcamp.quiz.dto.{BotResponse, BotUpdate}
-import org.http4s.Uri
-import org.http4s.implicits._
-import cats.effect.{Clock, IO, Timer}
-import org.http4s.circe._
+import cats.effect.{ContextShift, Effect}
+import com.evo.bootcamp.quiz.TelegramBotApi.InlineButtons
+import com.evo.bootcamp.quiz.dto.api.{BotResponse, BotUpdateMessage, InlineKeyboardButton, MessageResponse}
+import io.circe.Encoder
 import io.circe.generic.auto._
+import io.circe.generic.semiauto._
+import io.circe.syntax._
+import org.http4s.QueryParamEncoder.stringQueryParamEncoder
+import org.http4s.circe._
+import org.http4s.client.Client
+import org.http4s.implicits._
+import org.http4s.{EntityDecoder, QueryParamEncoder, QueryParameterValue, Uri}
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-
-class TelegramBotApi[F[_]](token: String, client: Client[F])(implicit F: Effect[F])
-{
+class TelegramBotApi[F[_]](token: String, client: Client[F])
+                          (implicit F: Effect[F], contextShift: ContextShift[F]) {
   private val botApiUri: Uri = uri"https://api.telegram.org" / s"bot$token"
-  implicit val decoder: EntityDecoder[F, BotResponse[List[BotUpdate]]] = jsonOf[F, BotResponse[List[BotUpdate]]]
+  implicit val botUpdatesDecoder: EntityDecoder[F, BotResponse[List[BotUpdateMessage]]] = jsonOf[F, BotResponse[List[BotUpdateMessage]]]
 
-  def putStrLn(s: BotResponse[List[BotUpdate]]): F[Unit] = F.delay(println(s))
+  implicit val messageUpdatesDecoder: EntityDecoder[F, MessageResponse] = jsonOf[F, MessageResponse]
+  implicit val InlineKeyboardButtonEncoder: Encoder[InlineKeyboardButton] = deriveEncoder[InlineKeyboardButton]
 
-  def requestUpdates(offset: Long): F[Long] = {
+  implicit val markupEncoder: QueryParamEncoder[InlineButtons] =
+    (list: InlineButtons) => {
+      QueryParameterValue(s"""{"inline_keyboard": ${list.asJson}}""")
+    }
+
+  def requestUpdates(offset: Long): F[BotResponse[List[BotUpdateMessage]]] = {
     val uri = botApiUri / "getUpdates" =? Map(
       "offset" -> List((offset + 1).toString),
-      "timeout" -> List("0.5"), // timeout to throttle the polling
-      "allowed_updates" -> List("""["message"]""")
+      "timeout" -> List("0.5"),
+      "allowed_updates" -> List("""["message", "callback_query"]""")
     )
-    client.expect[BotResponse[List[BotUpdate]]](uri)
-      .map(response => handleCommand(response).getOrElse(offset))
+    client.expect[BotResponse[List[BotUpdateMessage]]](uri)
   }
 
-  private def handleCommand(response: BotResponse[List[BotUpdate]]): Option[Long] =
-    response.result match {
-      case Nil => {
-        None
-      }
-      case nonEmpty => {
-        println("hi")
-        println(nonEmpty)
-        Some(nonEmpty.maxBy(_.update_id).update_id)
-      }
-    }
+  def editMessage(chatId: Long, messageId: Long, message: String, buttons: InlineButtons = List.empty): F[Unit] = {
+    val uri = (botApiUri / "editMessageText" =? Map(
+      "chat_id" -> List(chatId.toString),
+      "message_id" -> List(messageId.toString),
+      "parse_mode" -> List("Markdown"),
+      "text" -> List(message)
+    )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
+    client.expect[Unit](uri)
+  }
+
+  def deleteMessage(chatId: Long, messageId: Long): F[Unit] = {
+    val uri = botApiUri / "deleteMessage" =? Map(
+      "chat_id" -> List(chatId.toString),
+      "message_id" -> List(messageId.toString)
+    )
+    client.expect[Unit](uri)
+  }
+
+  def sendMessage(chatId: Long, message: String, buttons: InlineButtons = List.empty): F[MessageResponse] = {
+    val uri = (botApiUri / "sendMessage" =? Map(
+      "chat_id" -> List(chatId.toString),
+      "parse_mode" -> List("Markdown"),
+      "text" -> List(message),
+    )) +?? ("reply_markup", Some(buttons).filter(_.nonEmpty))
+
+    client.expect[MessageResponse](uri)
+  }
+}
+
+object TelegramBotApi {
+  type InlineButtons = List[List[InlineKeyboardButton]]
 }
