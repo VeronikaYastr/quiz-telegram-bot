@@ -1,26 +1,37 @@
 package com.evo.bootcamp.quiz.dao
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{Async, Blocker, ConcurrentEffect, ContextShift, Resource}
+import doobie.postgres._
 import com.evo.bootcamp.quiz.config.DbConfig
-import doobie.Fragment
-import doobie.util.transactor.Transactor
-import doobie.implicits._
-import doobie.h2._
+import doobie.hikari.HikariTransactor
+import doobie.util.ExecutionContexts
+import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.configuration.Configuration
 
 object DaoInit {
-  def transactor(dbConfig: DbConfig)(implicit cs: ContextShift[IO]): Transactor[IO] = {
-      Transactor.fromDriverManager[IO](
-        url = dbConfig.url,
-        user = dbConfig.username,
-        pass = dbConfig.password,
-        driver = dbConfig.driverName
-      )
-  }
 
-  def initTables(xa: Transactor[IO]): IO[Int] = {
-    val authorsFr = Fragment.const(DaoCommon.authorsSql)
-    val booksFr = Fragment.const(DaoCommon.booksSql)
-    val initDataFr = Fragment.const(DaoCommon.populateDataSql)
-    (authorsFr ++ booksFr ++ initDataFr).update.run.transact(xa)
-  }
+  def initialize[F[_]](transactor: HikariTransactor[F])(implicit F: ConcurrentEffect[F]): F[Unit] =
+    transactor.configure { dataSource =>
+      F.delay {
+        Flyway
+          .configure()
+          .dataSource(dataSource)
+          .load()
+          .migrate()
+      }
+    }
+
+  def transactor[F[_] : Async : ContextShift](dbConfig: DbConfig): Resource[F, HikariTransactor[F]] =
+    for {
+      context <- ExecutionContexts.fixedThreadPool[F](32)
+      blocker <- Blocker[F]
+      transactor <- HikariTransactor.newHikariTransactor[F](
+        dbConfig.driverName,
+        dbConfig.url,
+        dbConfig.username,
+        dbConfig.password,
+        context,
+        blocker
+      )
+    } yield transactor
 }
